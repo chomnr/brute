@@ -5,9 +5,10 @@ use anyhow::Result;
 use axum::http::StatusCode;
 use ipinfo::{IpInfo, IpInfoConfig};
 use parking_lot::Mutex;
+use serde::Deserialize;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
-use crate::{error::BruteError, model::Individual};
+use crate::error::BruteError;
 
 ////////////////////
 // CONFIGURATION //
@@ -231,4 +232,93 @@ impl Request<Individual> {
 
 impl Message for Request<Individual> {
     type Result = anyhow::Result<StatusCode, BruteError>;
+}
+
+/////////////
+// MODELS //
+///////////
+
+/// Represents the basic information of an individual attacker.
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct Individual {
+    pub username: String,
+    pub password: String,
+    pub ip: String,
+    pub protocol: String,
+}
+
+/// Represents the processed information of an individual attacker after IP info.
+pub struct ProcessedIndividual  {
+    // Included in the free tier of ipinfo.io
+    ip: String,
+    hostname: String,
+    city: String,
+    region: String,
+    country: String,
+    loc: String, // Latitude and longitude
+    org: String,
+    postal: String,
+    // Included in the ipinfo.io basic plan
+    asn: IndividualAsn,
+
+    // Included in the ipinfo.io business plan
+    company: IndividualCompany,
+ 
+    // Included in the ipinfo.io standard plan
+    privacy: IndividualPrivacy,
+ 
+    // Included in the ipinfo.io business plan
+    abuse: IndividualAbuse,
+}
+
+
+/// Represents an individual stored in the database.
+pub struct DatabaseIndividual {
+    id: String,
+    basic_info: Individual,
+    detailed_info: ProcessedIndividual,
+    created_at: i64
+}
+
+/// Represents ASN information.
+pub struct IndividualAsn {
+    asn: String,
+    name: String,
+    domain: String,
+    route: String,
+    r#type: String
+}
+
+/// Represents company information.
+pub struct IndividualCompany {
+    name: String,
+    domain: String,
+    r#type: String
+}
+
+/// Represents privacy information.
+pub struct IndividualPrivacy {
+    vpn: Option<bool>,
+    proxy: Option<bool>,
+    tor: Option<bool>,
+    relay: Option<bool>,
+    hosting: Option<bool>,
+    service: String
+}
+
+/// Represents abuse contact information.
+pub struct IndividualAbuse {
+    address: String,
+    country: String,
+    email: String,
+    name: String,
+    network: String,
+    phone: String
+}
+
+/// Represents hosted domains information.
+pub struct IndividualDomain {
+    ip: String,
+    total: u128,
+    domains: Vec<String>
 }
