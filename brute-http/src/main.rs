@@ -17,7 +17,7 @@ use sqlx::postgres::PgPoolOptions;
 fn main() -> Result<()>  {
     let system = System::new();
     system.block_on(async {
-        // Create a connection pool
+        // sqlx
         let pg_conn_string = var("BRUTE_DATABASE_URL").unwrap();
         let pg_pool = PgPoolOptions::new().max_connections(200)
             .connect(&pg_conn_string).await.unwrap();
