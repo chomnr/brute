@@ -39,5 +39,6 @@ CREATE TABLE processed_individual (
     -- Domain fields
     domain_ip VARCHAR(255),
     domain_total NUMERIC,
-    domains TEXT[]
+    domains TEXT[],
+    timestamp BIGINT NOT NULL
 );
