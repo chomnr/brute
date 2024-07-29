@@ -2,7 +2,7 @@ use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
 use ipinfo::IpInfo;
 use sqlx::{Pool, Postgres};
 
-use crate::attacker::AttackerRequest;
+use crate::attacker::{self, AttackerRequest};
 
 pub struct Brute {
     pub pool: Pool<Postgres>,

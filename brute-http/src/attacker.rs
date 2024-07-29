@@ -1,20 +1,13 @@
 use actix::Message;
 use serde::Deserialize;
 
-use crate::flags::Flags;
+use crate::flag::Flags;
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct Attacker {
-    /// PAM_USER
     username: String,
-
-    /// PAM_AUTHTOK
     password: String,
-
-    /// PAM_RHOST
     ip: String,
-
-    /// PAM_SERVICE
     protocol: String,
 }
 
@@ -40,10 +33,40 @@ impl Message for AttackerRequest {
 }
 
 impl AttackerRequest {
-    pub fn new(attacker: Attacker, flags: Flags) -> Self {
+    pub fn new(payload: Attacker, flags: Flags) -> Self {
         Self {
-            payload: attacker,
+            payload,
             flags,
         }
     }
 }
+ 
+
+// metrics...
+mod metric {
+    use sqlx::{Pool, Postgres};
+
+    use super::Attacker;
+
+    fn insert_attacker(payload: Attacker) {
+
+    }
+}
+/*
+pub mod attacker_sql {
+    use actix::Addr;
+    use sqlx::{Pool, Postgres};
+
+    use crate::brute::Brute;
+
+    use super::Attacker;
+
+    /// create and store attacker in db
+    fn create_and_store_attacker(payload: Attacker, pool: Pool<Postgres>) {
+        // store metrics...
+        // return result then progogate it to actor..
+
+        //
+    }
+}
+*/
