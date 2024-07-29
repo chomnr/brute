@@ -5,9 +5,8 @@ use axum::{http::StatusCode, routing::post, Extension, Json, Router};
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 
 use crate::{
-    brute::{self, BruteSystem},
+    brute::{self, BruteSystem, Individual},
     error::ErrorMessage,
-    model::Individual,
 };
 
 pub fn post_router() -> Router {

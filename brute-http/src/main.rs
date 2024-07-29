@@ -1,6 +1,5 @@
 mod brute;
 mod http;
-mod model;
 mod error;
 
 use actix::{Actor, System};
@@ -15,7 +14,7 @@ fn main() -> Result<()>  {
         // brute
         let brute_config = BruteConfig::default();
         let brute_system = BruteSystem::new_brute(brute_config).await.start();
-
+        
         // axum
         serve(brute_system).await.unwrap();
     });
