@@ -21,7 +21,6 @@ impl AttackerRequest {
         }
     }
 }
- 
 
 // metrics...
 pub mod metric {
@@ -42,25 +41,4 @@ pub mod metric {
     fn create_individual(indivdual: Individual) -> anyhow::Result<(), (StatusCode, String)> {
         todo!()
     }
-
-    //insert individual
-    //insert processed_individual
 }
-/*
-pub mod attacker_sql {
-    use actix::Addr;
-    use sqlx::{Pool, Postgres};
-
-    use crate::brute::Brute;
-
-    use super::Attacker;
-
-    /// create and store attacker in db
-    fn create_and_store_attacker(payload: Attacker, pool: Pool<Postgres>) {
-        // store metrics...
-        // return result then progogate it to actor..
-
-        //
-    }
-}
-*/
