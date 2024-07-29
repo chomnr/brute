@@ -4,7 +4,7 @@ use actix::{Actor, Addr};
 use axum::{http::StatusCode, routing::post, Extension, Json, Router};
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 
-use crate::{attacker::{Attacker, AttackerRequest}, brute::Brute, flag::Flags};
+use crate::{attacker::{Attacker, AttackerRequest}, brute::Brute, flags::Flags};
 
 pub fn post_router() -> Router {
     let bearer_token = var("BRUTE_BEARER_TOKEN").unwrap();

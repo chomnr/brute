@@ -1,8 +1,8 @@
 mod brute;
 mod attacker;
 mod http;
-mod flag;
 mod model;
+mod flags;
 
 use std::env::var;
 

@@ -1,7 +1,7 @@
 use actix::Message;
 use serde::Deserialize;
 
-use crate::flag::Flags;
+use crate::flags::Flags;
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct Attacker {
