@@ -8,12 +8,12 @@ use post::post_router;
 use tokio::net::TcpListener;
 use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
 
-use crate::brute::Brute;
+use crate::brute::BruteSystem;
 
 mod get;
 mod post;
 
-pub async fn serve(brute: Addr<Brute>) -> anyhow::Result<()> {
+pub async fn serve(brute: Addr<BruteSystem>) -> anyhow::Result<()> {
     // environment variables
     // let bearer_token = var("BRUTE_BEARER_TOKEN")?;
     let listen_on = var("BRUTE_LISTEN_ADDRESS")?;

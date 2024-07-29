@@ -19,3 +19,6 @@ uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"]}
 anyhow = "1.0.86"
 bitflags = { version = "2.6.0", features = ["serde"]}
 actix = "0.13.5"
+getset = "0.1.2"
+parking_lot = "0.12.3"
+thiserror = "1.0.63"

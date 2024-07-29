@@ -1,10 +1,14 @@
-use std::{env::var, sync::Arc};
+use std::env::var;
 
-use actix::{Actor, Addr};
+use actix::Addr;
 use axum::{http::StatusCode, routing::post, Extension, Json, Router};
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 
-use crate::{attacker::AttackerRequest, brute::Brute, flags::Flags, model::Individual};
+use crate::{
+    brute::{self, BruteSystem},
+    error::ErrorMessage,
+    model::Individual,
+};
 
 pub fn post_router() -> Router {
     let bearer_token = var("BRUTE_BEARER_TOKEN").unwrap();
@@ -14,10 +18,21 @@ pub fn post_router() -> Router {
 }
 
 async fn post_add_attack(
-    Extension(actor): Extension<Addr<Brute>>,
+    Extension(actor): Extension<Addr<BruteSystem>>,
     Json(payload): Json<Individual>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let flags = Flags::INSERT | Flags::UPDATE;
-    actor.send(AttackerRequest::new(payload, flags)).await.unwrap();
-    Ok(StatusCode::OK)
+) -> Result<StatusCode, (StatusCode, Json<ErrorMessage>)> {
+    match brute::Request::<Individual>::new(payload) {
+        Ok(request) => {
+            let decluttered_request = actor.send(request).await.unwrap();
+            match decluttered_request {
+                Ok(status_code) => {
+                    return Ok(status_code);
+                },
+                Err(err) => {
+                    return Err(err.to_response_with_message_only())
+                },
+            };
+        }
+        Err(err) => Err(err.to_response_with_message_only()),
+    }
 }

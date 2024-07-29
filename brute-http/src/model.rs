@@ -12,10 +12,10 @@ pub struct DatabaseIndividual {
 /// Represents the basic information of an individual attacker.
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct Individual {
-    username: String,
-    password: String,
-    ip: String,
-    protocol: String,
+    pub username: String,
+    pub password: String,
+    pub ip: String,
+    pub protocol: String,
 }
 
 /// Represents the processed information of an individual attacker after IP info.
