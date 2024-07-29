@@ -4,7 +4,7 @@ use actix::{Actor, Addr};
 use axum::{http::StatusCode, routing::post, Extension, Json, Router};
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 
-use crate::{attacker::{Attacker, AttackerRequest}, brute::Brute, flags::Flags};
+use crate::{attacker::AttackerRequest, brute::Brute, flags::Flags, model::Individual};
 
 pub fn post_router() -> Router {
     let bearer_token = var("BRUTE_BEARER_TOKEN").unwrap();
@@ -15,7 +15,7 @@ pub fn post_router() -> Router {
 
 async fn post_add_attack(
     Extension(actor): Extension<Addr<Brute>>,
-    Json(payload): Json<Attacker>,
+    Json(payload): Json<Individual>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let flags = Flags::INSERT | Flags::UPDATE;
     actor.send(AttackerRequest::new(payload, flags)).await.unwrap();

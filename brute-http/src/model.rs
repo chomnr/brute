@@ -10,7 +10,7 @@ pub struct DatabaseIndividual {
 }
 
 /// Represents the basic information of an individual attacker.
-#[derive(Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct Individual {
     username: String,
     password: String,
