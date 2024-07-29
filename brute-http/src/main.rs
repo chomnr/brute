@@ -33,7 +33,6 @@ fn main() -> Result<()>  {
 
         // Create and start the actor
         let actor = Brute::new(pg_pool, ipinfo).start();
-
         // Start the Axum server
         serve(actor).await.unwrap();
     });
