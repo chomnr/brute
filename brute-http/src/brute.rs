@@ -1,11 +1,11 @@
 use std::{env::var, sync::Arc};
 
 use actix::{Actor, AsyncContext, Context, Handler, Message, WrapFuture};
-use anyhow::{anyhow, bail, Result};
+use anyhow::Result;
 use axum::http::StatusCode;
-use ipinfo::IpInfo;
+use ipinfo::{IpInfo, IpInfoConfig};
 use parking_lot::Mutex;
-use sqlx::{Pool, Postgres};
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
 use crate::{error::BruteError, model::Individual};
 
@@ -31,6 +31,7 @@ impl BruteConfig {
     /// ```ignore
     /// let config = BruteConfig::new("postgresql://{username}:{password}@{host}/{database}", "some_otoken");
     /// ```
+    #[allow(dead_code)]
     fn new(conn_string: &str, ipinfo_token: &str) -> Self {
         if conn_string.is_empty() {
             panic!("The connection string cannot be empty.")
@@ -83,31 +84,26 @@ impl BruteSystem {
     ///
     /// ```ignore
     /// // Create the PostgreSQL connection pool
-    /// let database_pool = PgPoolOptions::new()
-    ///     .connect("postgresql://username:password@localhost/database")
-    ///     .await
-    ///     .expect("Failed to create database pool");
-    ///
-    /// // Create the IP info configuration
-    /// let ipinfo_config = IpInfoConfig {
-    ///     token: Some(ipinfo_access_token),
-    ///     ..Default::default()
-    /// };
-    ///
-    /// // Initialize the IP info client
-    /// let ipinfo = IpInfo::new(ipinfo_config).expect("Failed to initialize IpInfo");
+    /// let brute_config = BruteConfig::default();
     ///
     /// // Create an instance of BruteSystem
-    /// let brute_system = BruteSystem::new(database_pool, Arc::new(Mutex::new(ipinfo))); // as an actor you will append .start() at the end.s
+    /// let brute_system = BruteSystem::new(brute_config); // as an actor you will append .start() at the end.s
     /// ```
-    pub fn new(database_pool: Pool<Postgres>, ipinfo_client: Arc<Mutex<IpInfo>>) -> Self {
-        if database_pool.is_closed() {
-            panic!("The database pool is closed.")
-        }
+    pub async fn new_brute(config: BruteConfig) -> Self {
+        // sqlx
+        let pg_pool = PgPoolOptions::new().max_connections(200)
+            .connect(&config.conn_string).await.unwrap();
+
+        // ipinfo
+        let ipinfo_config = IpInfoConfig {
+            token: Some(config.ipinfo_token.clone()),
+            ..Default::default()
+        };
+        let ipinfo = IpInfo::new(ipinfo_config).unwrap();
 
         Self {
-            db_pool: database_pool,
-            ipinfo_client,
+            db_pool: pg_pool,
+            ipinfo_client: Arc::new(Mutex::new(ipinfo)),
         }
     }
 }
@@ -118,7 +114,7 @@ impl Actor for BruteSystem {
 
 impl Handler<Request<Individual>> for BruteSystem {
     type Result = anyhow::Result<StatusCode, BruteError>;
-
+    
     fn handle(&mut self, msg: Request<Individual>, ctx: &mut Self::Context) -> Self::Result {
         let pool = self.db_pool.clone();
         let ipinfo = self.ipinfo_client.clone();
@@ -214,6 +210,7 @@ impl Request<Individual> {
         Ok(Request { payload })
     }
 
+    #[allow(dead_code)]
     pub fn new_request(
         username: &str,
         password: &str,
