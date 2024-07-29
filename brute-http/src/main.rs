@@ -1,13 +1,8 @@
-use flags::QueryFlags;
-
 mod http;
 mod flags;
 
 use anyhow::Result;
 
-pub struct Brute {
-
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
