@@ -17,3 +17,4 @@ sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls" ] }
 # rustls-native-certs = "0.7.1"
 uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"]}
 anyhow = "1.0.86"
+bitflags = "2.6.0"

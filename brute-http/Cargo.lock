@@ -185,6 +185,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "bitflags 2.6.0",
  "ipinfo",
  "serde",
  "sqlx",
