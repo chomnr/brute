@@ -16,18 +16,34 @@ use crate::{error::BruteError, model::Individual};
 /// Configuration for the `Brute` service.
 pub struct BruteConfig {
     /// Database connection string.
-    conn_string: String,
+    pub conn_string: String,
 
     /// API token for IP info service.
-    ipinfo_token: String,
+    pub ipinfo_token: String,
 }
 
 impl BruteConfig {
-    /// Create new instance of BruteConfig.
+    /// # Panics
+    ///
+    /// Panics if the connection string is empty or does not start with "postgresql://",
+    /// or if the IP info access token is empty.
+    ///
     /// ```ignore
     /// let config = BruteConfig::new("postgresql://{username}:{password}@{host}/{database}", "some_otoken");
     /// ```
     fn new(conn_string: &str, ipinfo_token: &str) -> Self {
+        if conn_string.is_empty() {
+            panic!("The connection string cannot be empty.")
+        }
+
+        if !conn_string.starts_with("postgresql://") {
+            panic!("The connection string must start with 'postgresql://'")
+        }
+
+        if ipinfo_token.is_empty() {
+            panic!("The ipinfo access token cannot be empty.")
+        }
+
         BruteConfig {
             conn_string: String::from(conn_string),
             ipinfo_token: String::from(ipinfo_token),
@@ -219,45 +235,3 @@ impl Request<Individual> {
 impl Message for Request<Individual> {
     type Result = anyhow::Result<StatusCode, BruteError>;
 }
-
-/*
-/// Manages attacker requests and associated resources.
-pub struct Brute {
-    /// PostgreSQL connection pool.
-    pub db_pool: Pool<Postgres>,
-
-    /// IP info client with shared access.
-    pub ipinfo_client: Arc<Mutex<IpInfo>>,
-}
-*/
-/*
-impl Actor for Brute {
-    type Context = Context<Self>;
-}
-
-impl Handler<AttackerRequest> for Brute {
-    type Result = ();
-
-    fn handle(&mut self, request: AttackerRequest, context: &mut Self::Context) -> Self::Result {
-        // Clone the database pool.
-        let db_pool = self.pool.clone();
-
-        // Clone the IP info client.
-        let ipinfo_client = Arc::clone(&self.ipinfo);
-
-        // Spawn an asynchronous task to handle the request.
-        let future_task = Box::pin(async move {
-            // Perform the necessary queries on the given request.
-            attacker::metric::perform(request.payload, db_pool, ipinfo_client).await;
-            println!("Request processed.")
-        });
-
-        // Spawn a future into the context.
-        context.spawn(future_task.into_actor(self));
-    }
-}
-*/
-
-//////////////
-// REQUEST //
-////////////
