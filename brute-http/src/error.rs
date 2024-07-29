@@ -18,7 +18,7 @@ pub struct ErrorMessage {
 }
 
 impl BruteError {
-    /*
+    #[allow(dead_code)]
     pub fn to_response(&self) -> (StatusCode, Json<Self>) {
         let status_code = match self {
             BruteError { status_code, .. } => {
@@ -27,7 +27,6 @@ impl BruteError {
         };
         (status_code, Json(self.clone()))
     }
-    */
 
     pub fn to_response_with_message_only(&self) -> (StatusCode, Json<ErrorMessage>) {
         let status_code = match self {
