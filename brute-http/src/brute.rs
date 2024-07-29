@@ -1,10 +1,7 @@
-use std::time::Duration;
-
-use actix::{Actor, AsyncContext, Context, Handler, Message, WrapFuture};
+use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
 use sqlx::{Pool, Postgres};
-use tokio::time::sleep;
 
-use crate::{attacker::AttackerRequest, flags::{self, Flags}};
+use crate::attacker::AttackerRequest;
 
 pub struct Brute {
     pub pool: Pool<Postgres>
