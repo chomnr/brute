@@ -37,7 +37,6 @@ pub async fn serve(brute: Addr<BruteSystem>) -> anyhow::Result<()> {
     .context("Could not run HTTP Server")
 }
 
-
 fn api_router() -> Router {
     let router = Router::new();
     router.merge(get_router()).merge(post_router())
