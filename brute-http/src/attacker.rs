@@ -6,7 +6,7 @@ use crate::{flags::Flags, model::Individual};
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct AttackerRequest {
     pub payload: Individual,
-    flags: Flags
+    flags: Flags,
 }
 
 impl Message for AttackerRequest {
@@ -15,10 +15,7 @@ impl Message for AttackerRequest {
 
 impl AttackerRequest {
     pub fn new(payload: Individual, flags: Flags) -> Self {
-        Self {
-            payload,
-            flags,
-        }
+        Self { payload, flags }
     }
 }
 
@@ -28,12 +25,14 @@ pub mod metric {
 
     use actix::Addr;
     use axum::http::StatusCode;
+    use ipinfo::IpInfo;
     use sqlx::{Pool, Postgres};
     use tokio::sync::Mutex;
 
     use crate::model::Individual;
 
-    pub async fn perform(individual: Individual, pool: Pool<Postgres>) {
+    pub async fn perform(individual: Individual, pool: Pool<Postgres>, ipinfo: Arc<Mutex<IpInfo>>) {
+        let test = ipinfo.lock().await.lookup("ip").await.unwrap();
         todo!()
     }
 

@@ -3,8 +3,10 @@ mod attacker;
 mod http;
 mod model;
 mod flags;
+mod request;
+mod metric;
 
-use std::env::var;
+use std::{env::var, sync::Arc};
 
 use actix::{Actor, System};
 use anyhow::Result;
@@ -13,6 +15,7 @@ use brute::Brute;
 use http::serve;
 use ipinfo::{IpInfo, IpInfoConfig};
 use sqlx::postgres::PgPoolOptions;
+use tokio::sync::Mutex;
 
 
 fn main() -> Result<()>  {
@@ -32,7 +35,7 @@ fn main() -> Result<()>  {
         let mut ipinfo = IpInfo::new(ipinfo_config).unwrap();
 
         // Create and start the actor
-        let actor = Brute::new(pg_pool, ipinfo).start();
+        let actor = Brute::new(pg_pool, Arc::new(Mutex::new(ipinfo))).start();
         // Start the Axum server
         serve(actor).await.unwrap();
     });
