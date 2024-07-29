@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
 use ipinfo::IpInfo;
 use sqlx::{Pool, Postgres};
+use tokio::sync::Mutex;
 
-use crate::attacker::{self, AttackerRequest};
+use crate::attacker::{self, metric, AttackerRequest};
 
 pub struct Brute {
     pub pool: Pool<Postgres>,
@@ -17,10 +20,11 @@ impl Handler<AttackerRequest> for Brute {
     type Result = ();
 
     fn handle(&mut self, msg: AttackerRequest, ctx: &mut Self::Context) -> Self::Result {
-        let fut = Box::pin(async {
-            //sleep(Duration::from_secs(2)).await; // Simulating async work
-            // do the database magic here...
-            println!("DONE")
+        let pool = self.pool.clone();
+        let fut = Box::pin(async move {
+            // does the magic...
+            attacker::metric::perform(msg.payload, pool).await;
+            println!("Processed a request...")
         });
         let actor_future = fut.into_actor(self);
         ctx.spawn(actor_future);
