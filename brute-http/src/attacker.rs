@@ -1,30 +1,11 @@
 use actix::Message;
 use serde::Deserialize;
 
-use crate::flags::Flags;
-
-#[derive(Default, Debug, Clone, Deserialize)]
-pub struct Attacker {
-    username: String,
-    password: String,
-    ip: String,
-    protocol: String,
-}
-
-impl Attacker {
-    pub fn new(username: &str, password: &str, ip: &str, protocol: &str) -> Self {
-        Self {
-            username: String::from(username),
-            password: String::from(password),
-            ip: String::from(ip),
-            protocol: String::from(protocol)
-        }
-    }
-}
+use crate::{flags::Flags, model::Individual};
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct AttackerRequest {
-    payload: Attacker,
+    pub payload: Individual,
     flags: Flags
 }
 
@@ -33,7 +14,7 @@ impl Message for AttackerRequest {
 }
 
 impl AttackerRequest {
-    pub fn new(payload: Attacker, flags: Flags) -> Self {
+    pub fn new(payload: Individual, flags: Flags) -> Self {
         Self {
             payload,
             flags,
@@ -43,14 +24,27 @@ impl AttackerRequest {
  
 
 // metrics...
-mod metric {
+pub mod metric {
+    use std::sync::{Arc, MutexGuard};
+
+    use actix::Addr;
+    use axum::http::StatusCode;
     use sqlx::{Pool, Postgres};
+    use tokio::sync::Mutex;
 
-    use super::Attacker;
+    use crate::model::Individual;
 
-    fn insert_attacker(payload: Attacker) {
-
+    pub async fn perform(individual: Individual, pool: Pool<Postgres>) {
+        todo!()
     }
+
+    // individual here..
+    fn create_individual(indivdual: Individual) -> anyhow::Result<(), (StatusCode, String)> {
+        todo!()
+    }
+
+    //insert individual
+    //insert processed_individual
 }
 /*
 pub mod attacker_sql {
