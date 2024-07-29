@@ -1,8 +1,10 @@
 use bitflags::bitflags;
+use serde::Deserialize;
 
 bitflags! {
     // flags for query actions.
-    pub struct QueryFlags: u32 {
+    #[derive(Default, Debug, Clone, Deserialize)]
+    pub struct Flags: u32 {
         const INSERT = 0b00000001;
         const UPDATE = 0b00000010;
         const DELETE = 0b00000100;
