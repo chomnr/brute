@@ -1,10 +1,12 @@
 use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
+use ipinfo::IpInfo;
 use sqlx::{Pool, Postgres};
 
 use crate::attacker::AttackerRequest;
 
 pub struct Brute {
-    pub pool: Pool<Postgres>
+    pub pool: Pool<Postgres>,
+    pub ipinfo: IpInfo
 }
 
 impl Actor for Brute {
@@ -26,9 +28,10 @@ impl Handler<AttackerRequest> for Brute {
 }
 
 impl Brute {
-    pub fn new(pool: Pool<Postgres>) -> Self {
+    pub fn new(pool: Pool<Postgres>, ipinfo: IpInfo) -> Self {
         Self {
-            pool
+            pool,
+            ipinfo
         }
     }
 }
