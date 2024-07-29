@@ -19,7 +19,7 @@ fn main() -> Result<()>  {
     let system = System::new();
     system.block_on(async {
         // Create a connection pool
-        let pg_conn_string = var("BRUTE_CONNECTION_STRING").unwrap();
+        let pg_conn_string = var("DATABASE_URL").unwrap();
         let pg_pool = PgPoolOptions::new().max_connections(200)
             .connect(&pg_conn_string).await.unwrap();
 
