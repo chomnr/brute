@@ -81,15 +81,13 @@ impl Handler<Individual> for BruteSystem {
 
 pub mod reporter {
     use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
-
     use uuid::Uuid;
-
     use crate::model::Individual;
-
     use super::{Brute, BruteSystem};
 
     pub trait Reporter {}
 
+    #[allow(async_fn_in_trait)]
     pub trait Reportable<T: Reporter> {
         async fn report(reporter: T, model: Self) -> Option<Self>
         where
