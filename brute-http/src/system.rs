@@ -82,6 +82,9 @@ impl Handler<Individual> for BruteSystem {
 pub mod reporter {
     use super::{Brute, BruteSystem};
     use crate::model::{Individual, ProcessedIndividual};
+    use axum::http::header::VARY;
+    use clap::builder::Str;
+    use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use std::{
         sync::Arc,
         time::{SystemTime, UNIX_EPOCH},
@@ -149,11 +152,25 @@ pub mod reporter {
     }
 
     // processed individual
+    
     impl Reportable<BruteReporter<BruteSystem>, Individual> for ProcessedIndividual {
         async fn report(
             reporter: BruteReporter<BruteSystem>,
             model: Individual,
         ) -> Option<ProcessedIndividual> {
+            let pool = &reporter.brute.db_pool;
+            let ipinfo = &reporter.brute.ipinfo_client;
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as i64;
+    
+            let select_query = "SELECT *
+                FROM processed_individual
+                WHERE ip = $1
+                ORDER BY timestamp DESC
+                LIMIT 1;";
+    
             let insert_query = r#"
                 INSERT INTO processed_individual (
                 id, username, password, ip, protocol, hostname, city, region, country, loc, org, postal,
@@ -169,12 +186,197 @@ pub mod reporter {
                     $21, $22, $23, $24, $25, $26,
                     $27, $28, $29, $30, $31, $32,
                     $33, $34, $35, $36
-                );"#;
-            // check if ip already exists
-            // if ip already exists get the last_ip that was inserted
-            // check the timestamp if the timestamp exceeds 5 minutes then
-            // hit the ipinfo api again if not then just retrieve the data. (just helps with accuracy...).
-            todo!()
+                ) RETURNING *;"#;
+    
+            let asn_default = AsnDetails {
+                asn: String::default(),
+                name: String::default(),
+                domain: String::default(),
+                route: String::default(),
+                asn_type: String::default(),
+            };
+    
+            let company_default = CompanyDetails {
+                name: String::default(),
+                domain: String::default(),
+                company_type: String::default(),
+            };
+    
+            let abuse_default = AbuseDetails {
+                address: String::default(),
+                country: String::default(),
+                email: String::default(),
+                name: String::default(),
+                network: String::default(),
+                phone: String::default(),
+            };
+    
+            let privacy_default = PrivacyDetails {
+                vpn: false,
+                proxy: false,
+                tor: false,
+                relay: false,
+                hosting: false,
+                service: String::default(),
+            };
+    
+            let domain_default = DomainsDetails {
+                ip: Some(String::default()),
+                total: 0,
+                domains: Vec::default(),
+            };
+    
+            let ip_exists = sqlx::query_as::<_, ProcessedIndividual>(select_query)
+                .bind(&model.ip())
+                .fetch_optional(pool)
+                .await
+                .unwrap();
+    
+            let pi = if let Some(result) = ip_exists {
+                if now - result.timestamp > 300_000 {
+                    let mut ipinfo_lock = ipinfo.lock();
+                    let ip_details = ipinfo_lock.lookup(&model.ip()).await.unwrap();
+    
+                    let asn_details = ip_details.asn.as_ref().unwrap_or(&asn_default);
+                    let company_details = ip_details.company.as_ref().unwrap_or(&company_default);
+                    let abuse_details = ip_details.abuse.as_ref().unwrap_or(&abuse_default);
+                    let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
+                    let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
+    
+                    sqlx::query_as::<_, ProcessedIndividual>(insert_query)
+                        .bind(&model.id())
+                        .bind(&model.username())
+                        .bind(&model.password())
+                        .bind(&model.ip())
+                        .bind(&model.protocol())
+                        .bind(&ip_details.hostname)
+                        .bind(&ip_details.city)
+                        .bind(&ip_details.region)
+                        .bind(&ip_details.country)
+                        .bind(&ip_details.loc)
+                        .bind(&ip_details.org)
+                        .bind(&ip_details.postal)
+                        .bind(&asn_details.asn)
+                        .bind(&asn_details.name)
+                        .bind(&asn_details.domain)
+                        .bind(&asn_details.route)
+                        .bind(&asn_details.asn_type)
+                        .bind(&company_details.name)
+                        .bind(&company_details.domain)
+                        .bind(&company_details.company_type)
+                        .bind(privacy_details.vpn)
+                        .bind(privacy_details.proxy)
+                        .bind(privacy_details.tor)
+                        .bind(privacy_details.relay)
+                        .bind(privacy_details.hosting)
+                        .bind(&privacy_details.service)
+                        .bind(&abuse_details.address)
+                        .bind(&abuse_details.country)
+                        .bind(&abuse_details.email)
+                        .bind(&abuse_details.name)
+                        .bind(&abuse_details.network)
+                        .bind(&abuse_details.phone)
+                        .bind(&domain_details.ip)
+                        .bind(domain_details.total as i64)
+                        .bind(&domain_details.domains)
+                        .bind(model.timestamp)
+                        .fetch_one(pool)
+                        .await
+                        .unwrap()
+                } else {
+                    sqlx::query_as::<_, ProcessedIndividual>(insert_query)
+                        .bind(&model.id())
+                        .bind(&model.username())
+                        .bind(&model.password())
+                        .bind(&model.ip())
+                        .bind(&model.protocol())
+                        .bind(&result.hostname())
+                        .bind(&result.city())
+                        .bind(&result.region())
+                        .bind(&result.country())
+                        .bind(&result.loc())
+                        .bind(&result.org())
+                        .bind(&result.postal())
+                        .bind(&result.asn())
+                        .bind(&result.asn_name())
+                        .bind(&result.asn_domain())
+                        .bind(&result.asn_route())
+                        .bind(&result.asn_type())
+                        .bind(&result.company_name())
+                        .bind(&result.company_domain())
+                        .bind(&result.company_type())
+                        .bind(result.vpn())
+                        .bind(result.proxy())
+                        .bind(result.tor())
+                        .bind(result.relay())
+                        .bind(result.hosting())
+                        .bind(&result.service())
+                        .bind(&result.abuse_address())
+                        .bind(&result.abuse_country())
+                        .bind(&result.abuse_email())
+                        .bind(&result.abuse_name())
+                        .bind(&result.abuse_network())
+                        .bind(&result.abuse_phone())
+                        .bind(&result.domain_ip())
+                        .bind(result.domain_total())
+                        .bind(&result.domains())
+                        .bind(model.timestamp)
+                        .fetch_one(pool)
+                        .await
+                        .unwrap()
+                }
+            } else {
+                let mut ipinfo_lock = ipinfo.lock();
+                let ip_details = ipinfo_lock.lookup(&model.ip()).await.unwrap();
+    
+                let asn_details = ip_details.asn.as_ref().unwrap_or(&asn_default);
+                let company_details = ip_details.company.as_ref().unwrap_or(&company_default);
+                let abuse_details = ip_details.abuse.as_ref().unwrap_or(&abuse_default);
+                let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
+                let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
+    
+                sqlx::query_as::<_, ProcessedIndividual>(insert_query)
+                    .bind(&model.id())
+                    .bind(&model.username())
+                    .bind(&model.password())
+                    .bind(&model.ip())
+                    .bind(&model.protocol())
+                    .bind(&ip_details.hostname)
+                    .bind(&ip_details.city)
+                    .bind(&ip_details.region)
+                    .bind(&ip_details.country)
+                    .bind(&ip_details.loc)
+                    .bind(&ip_details.org)
+                    .bind(&ip_details.postal)
+                    .bind(&asn_details.asn)
+                    .bind(&asn_details.name)
+                    .bind(&asn_details.domain)
+                    .bind(&asn_details.route)
+                    .bind(&asn_details.asn_type)
+                    .bind(&company_details.name)
+                    .bind(&company_details.domain)
+                    .bind(&company_details.company_type)
+                    .bind(privacy_details.vpn)
+                    .bind(privacy_details.proxy)
+                    .bind(privacy_details.tor)
+                    .bind(privacy_details.relay)
+                    .bind(privacy_details.hosting)
+                    .bind(&privacy_details.service)
+                    .bind(&abuse_details.address)
+                    .bind(&abuse_details.country)
+                    .bind(&abuse_details.email)
+                    .bind(&abuse_details.name)
+                    .bind(&abuse_details.network)
+                    .bind(&abuse_details.phone)
+                    .bind(&domain_details.ip)
+                    .bind(domain_details.total as i64)
+                    .bind(&domain_details.domains)
+                    .bind(model.timestamp)
+                    .fetch_one(pool)
+                    .await
+                    .unwrap()
+            };
+            Some(pi)
         }
     }
 }
