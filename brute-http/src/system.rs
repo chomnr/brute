@@ -158,6 +158,9 @@ pub mod reporter {
             reporter: BruteReporter<BruteSystem>,
             model: Individual,
         ) -> Option<ProcessedIndividual> {
+            // mistakes were made i probably could have just used the 
+            // structs that were given to me by ipinfo. it is what is.
+            // you live you learn. chomnr 4:01 am florida 7/30/2024.
             let pool = &reporter.brute.db_pool;
             let ipinfo = &reporter.brute.ipinfo_client;
             let now = SystemTime::now()
