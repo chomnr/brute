@@ -1,4 +1,1 @@
-patches/* linguist-vendored
-patches/*/* linguist-vendored
-patches/openssh-9.8/* linguist-vendored
-patches/openssh-9.8-janky/*
+*.c linguist-vendored
