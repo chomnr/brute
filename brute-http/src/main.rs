@@ -1,4 +1,4 @@
-use actix::System;
+use actix::{System, Actor};
 use anyhow::Result;
 use brute_http::{config::Config, http::serve, system::BruteSystem};
 use clap::Parser;
@@ -20,6 +20,7 @@ fn main() -> Result<()> {
         .filter_module("polling", log::LevelFilter::Off)
         .filter_module("tracing", log::LevelFilter::Off)
         .filter_module("sqlx", log::LevelFilter::Off)
+        .filter_module("tower_http", log::LevelFilter::Off)
         .init();
 
     // Parse command-line arguments and environment variables to
@@ -54,10 +55,10 @@ fn main() -> Result<()> {
 
         // setup actor
         let brute_system = BruteSystem::new_brute(db, ipinfo_client).await;
-        let brute_actor = todo!(); // call .start() on brute_system
+        let brute_actor = brute_system.start(); // call .start() on brute_system
 
         // Start listening.
-        serve().await.unwrap();
+        serve(brute_actor).await.unwrap();
     });
     Ok(())
 }
