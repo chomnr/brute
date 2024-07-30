@@ -2,6 +2,8 @@
 use derive_builder::Builder;
 use derive_getters::Getters;
 
+use actix::Message;
+
 #[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
 #[builder(setter(into))]
 pub struct Individual {
@@ -11,6 +13,11 @@ pub struct Individual {
     ip: String,
     protocol: String,
     timestamp: i64,
+}
+
+// allow as a message in actix actor.
+impl Message for Individual {
+    type Result = ();
 }
 
 #[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
