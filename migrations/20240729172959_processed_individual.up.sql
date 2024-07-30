@@ -38,7 +38,7 @@ CREATE TABLE processed_individual (
     abuse_phone VARCHAR(50),
     -- Domain fields
     domain_ip VARCHAR(255),
-    domain_total NUMERIC,
+    domain_total BIGINT,
     domains TEXT[],
     timestamp BIGINT NOT NULL
 );
