@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use actix::Addr;
 use axum::{http::StatusCode, routing::post, Extension, Json, Router};
 use dotenvy::var;
