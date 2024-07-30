@@ -49,7 +49,6 @@ fn main() -> Result<()> {
         
         // Ensure the database is migrated correctly on startup.
         sqlx::migrate!("..\\migrations\\").run(&db).await.unwrap();
-
         info!("Migration process completed successfully.");
 
         // Start listening.
