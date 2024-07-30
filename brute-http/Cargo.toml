@@ -2,23 +2,43 @@
 name = "brute-http"
 version = "0.1.0"
 edition = "2021"
+authors = [
+    "Zeljko Vranjes <zeljkovranjes@outlook.com>"
+]
 
 [dependencies]
-axum = { version = "0.7.5", features = ["json"] }
-serde = { version = "1.0.204", features = ["derive"] }
 tokio = { version = "1.2.0", default-features = false, features = [
     "macros",
     "rt-multi-thread",
-]}
+] }
+axum = { version = "0.7.5", features = ["json"] }
+actix = "0.13.5"
 tower-http = { version = "0.5.2", features = ["limit", "auth", "trace"] }
+sqlx = { version = "0.8.0", features = [ "runtime-tokio", "tls-rustls", "postgres" ] }
 ipinfo = "3.0.0"
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls", "postgres" ] }
+serde = { version = "1.0.130", features = ["derive"] }
+env_logger = "0.11.5"
+log = "0.4.22"
+dotenvy = "0.15.7"
+anyhow = "1.0.86"
+parking_lot = "0.12.3"
+clap = { version = "4.5.11", features = ["derive", "env"] }
+
+# axum = { version = "0.7.5", features = ["json"] }
+# serde = { version = "1.0.204", features = ["derive"] }
+# tokio = { version = "1.2.0", default-features = false, features = [
+#    "macros",
+#    "rt-multi-thread",
+#]}
+#tower-http = { version = "0.5.2", features = ["limit", "auth", "trace"] }
+#ipinfo = "3.0.0"
+#sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls", "postgres" ] }
 # rustls = "0.23.12"
 # rustls-native-certs = "0.7.1"
-uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"]}
-anyhow = "1.0.86"
-bitflags = { version = "2.6.0", features = ["serde"]}
-actix = "0.13.5"
-getset = "0.1.2"
-parking_lot = "0.12.3"
-thiserror = "1.0.63"
+#uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"]}
+#anyhow = "1.0.86"
+#bitflags = { version = "2.6.0", features = ["serde"]}
+#actix = "0.13.5"
+#getset = "0.1.2"
+#parking_lot = "0.12.3"
+#thiserror = "1.0.63"
