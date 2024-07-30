@@ -82,8 +82,6 @@ impl Handler<Individual> for BruteSystem {
 pub mod reporter {
     use super::{Brute, BruteSystem};
     use crate::model::{Individual, ProcessedIndividual};
-    use axum::http::header::VARY;
-    use clap::builder::Str;
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use std::{
         sync::Arc,
