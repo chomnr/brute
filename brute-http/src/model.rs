@@ -56,7 +56,7 @@ pub struct ProcessedIndividual {
     abuse_network: Option<String>,
     abuse_phone: Option<String>,
     domain_ip: Option<String>,
-    domain_total: Option<f64>,
+    domain_total: Option<i64>,
     domains: Option<Vec<String>>,
     pub timestamp: i64,
 }
