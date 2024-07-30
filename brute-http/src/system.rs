@@ -81,7 +81,7 @@ impl Handler<Individual> for BruteSystem {
 
 pub mod reporter {
     use super::{Brute, BruteSystem};
-    use crate::model::{Individual, ProcessedIndividual, TopUsrPassCombo};
+    use crate::model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopIp, TopOrg, TopPassword, TopPostal, TopProtocol, TopRegion, TopTimezone, TopUsername, TopUsrPassCombo};
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use std::{
         sync::Arc,
@@ -110,7 +110,20 @@ pub mod reporter {
 
         pub async fn start_report(&self, payload: Individual) {
             let individual = Individual::report(self.clone(), payload).await.unwrap();
-            let processed_individual = ProcessedIndividual::report(self.clone(), individual).await.unwrap();
+            let processed_individual = ProcessedIndividual::report(self.clone(), individual.clone())
+                .await
+                .unwrap();
+            TopUsername::report(self.clone(), individual.clone()).await.unwrap();
+            TopPassword::report(self.clone(), individual.clone()).await.unwrap();
+            TopIp::report(self.clone(), individual.clone()).await.unwrap();
+            TopProtocol::report(self.clone(), individual.clone()).await.unwrap();
+            TopCity::report(self.clone(), processed_individual.clone()).await.unwrap();
+            TopRegion::report(self.clone(), processed_individual.clone()).await.unwrap();
+            TopCountry::report(self.clone(), processed_individual.clone()).await.unwrap();
+            TopTimezone::report(self.clone(), processed_individual.clone()).await.unwrap();
+            TopOrg::report(self.clone(), processed_individual.clone()).await.unwrap();
+            TopPostal::report(self.clone(), processed_individual.clone()).await.unwrap();
+            TopUsrPassCombo::report(self.clone(), individual.clone()).await.unwrap();
         }
     }
 
@@ -176,14 +189,14 @@ pub mod reporter {
                 company_name, company_domain, company_type,
                 vpn, proxy, tor, relay, hosting, service,
                 abuse_address, abuse_country, abuse_email, abuse_name, abuse_network, abuse_phone,
-                domain_ip, domain_total, domains, timestamp
+                domain_ip, domain_total, domains, timestamp, timezone
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
                     $13, $14, $15, $16, $17,
                     $18, $19, $20,
                     $21, $22, $23, $24, $25, $26,
                     $27, $28, $29, $30, $31, $32,
-                    $33, $34, $35, $36
+                    $33, $34, $35, $36, $37
                 ) RETURNING *;"#;
 
             let asn_default = AsnDetails {
@@ -278,6 +291,7 @@ pub mod reporter {
                         .bind(domain_details.total as i64)
                         .bind(&domain_details.domains)
                         .bind(model.timestamp)
+                        .bind(ip_details.timezone)
                         .fetch_one(pool)
                         .await?
                 } else {
@@ -318,6 +332,7 @@ pub mod reporter {
                         .bind(result.domain_total())
                         .bind(&result.domains())
                         .bind(model.timestamp)
+                        .bind(&result.timezone())
                         .fetch_one(pool)
                         .await?
                 }
@@ -330,7 +345,7 @@ pub mod reporter {
                 let abuse_details = ip_details.abuse.as_ref().unwrap_or(&abuse_default);
                 let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
                 let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
-
+                
                 sqlx::query_as::<_, ProcessedIndividual>(insert_query)
                     .bind(&model.id())
                     .bind(&model.username())
@@ -368,21 +383,227 @@ pub mod reporter {
                     .bind(domain_details.total as i64)
                     .bind(&domain_details.domains)
                     .bind(model.timestamp)
+                    .bind(&ip_details.timezone)
                     .fetch_one(pool)
                     .await?
             };
             Ok(pi)
         }
     }
-    
-    // top 
-    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopUsrPassCombo {
+
+    // top username
+    impl Reportable<BruteReporter<BruteSystem>, Individual> for TopUsername {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: Individual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_username ( username, amount ) VALUES ($1, 1) ON CONFLICT (username) DO UPDATE SET
+                amount = top_username.amount + EXCLUDED.amount RETURNING username, amount;"#;
+            let result = sqlx::query_as::<_, TopUsername>(query)
+                .bind(model.username())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top password
+    impl Reportable<BruteReporter<BruteSystem>, Individual> for TopPassword {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: Individual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_password ( password, amount ) VALUES ($1, 1) ON CONFLICT (password) DO UPDATE SET
+                amount = top_password.amount + EXCLUDED.amount RETURNING password, amount;"#;
+            let result = sqlx::query_as::<_, TopPassword>(query)
+                .bind(model.password())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top ip
+    impl Reportable<BruteReporter<BruteSystem>, Individual> for TopIp {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: Individual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_ip ( ip, amount ) VALUES ($1, 1) ON CONFLICT (ip) DO UPDATE SET
+                amount = top_ip.amount + EXCLUDED.amount RETURNING ip, amount;"#;
+            let result = sqlx::query_as::<_, TopIp>(query)
+                .bind(model.ip())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top protocol
+    impl Reportable<BruteReporter<BruteSystem>, Individual> for TopProtocol {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: Individual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_protocol ( protocol, amount ) VALUES ($1, 1) ON CONFLICT (protocol) DO UPDATE SET
+                amount = top_protocol.amount + EXCLUDED.amount RETURNING protocol, amount;"#;
+            let result = sqlx::query_as::<_, TopProtocol>(query)
+                .bind(model.protocol())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top city
+    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopCity {
         async fn report(
             reporter: BruteReporter<BruteSystem>,
             mut model: ProcessedIndividual,
         ) -> anyhow::Result<Self> {
-            todo!()
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_city ( city, amount ) VALUES ($1, 1) ON CONFLICT (city) DO UPDATE SET
+                amount = top_city.amount + EXCLUDED.amount RETURNING city, amount;"#;
+            let result = sqlx::query_as::<_, TopCity>(query)
+                .bind(model.city())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
         }
     }
 
+    // top region
+    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopRegion {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: ProcessedIndividual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_region ( region, amount ) VALUES ($1, 1) ON CONFLICT (region) DO UPDATE SET
+                amount = top_region.amount + EXCLUDED.amount RETURNING region, amount;"#;
+            let result = sqlx::query_as::<_, TopRegion>(query)
+                .bind(model.region())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top timezone
+    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopTimezone {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: ProcessedIndividual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_timezone ( timezone, amount ) VALUES ($1, 1) ON CONFLICT (timezone) DO UPDATE SET
+                amount = top_timezone.amount + EXCLUDED.amount RETURNING timezone, amount;"#;
+            let result = sqlx::query_as::<_, TopTimezone>(query)
+                .bind(model.timezone())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top country
+    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopCountry {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: ProcessedIndividual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_country ( country, amount ) VALUES ($1, 1) ON CONFLICT (country) DO UPDATE SET
+                amount = top_country.amount + EXCLUDED.amount RETURNING country, amount;"#;
+            let result = sqlx::query_as::<_, TopCountry>(query)
+                .bind(model.country())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top org
+    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopOrg {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: ProcessedIndividual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_org ( org, amount ) VALUES ($1, 1) ON CONFLICT (org) DO UPDATE SET
+                amount = top_org.amount + EXCLUDED.amount RETURNING org, amount;"#;
+            let result = sqlx::query_as::<_, TopOrg>(query)
+                .bind(model.org())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    // top postal
+    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopPostal {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: ProcessedIndividual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_postal ( postal, amount ) VALUES ($1, 1) ON CONFLICT (postal) DO UPDATE SET
+                amount = top_postal.amount + EXCLUDED.amount RETURNING postal, amount;"#;
+            let result = sqlx::query_as::<_, TopPostal>(query)
+                .bind(model.postal())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
+
+    impl Reportable<BruteReporter<BruteSystem>, Individual> for TopUsrPassCombo {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: Individual,
+        ) -> anyhow::Result<Self> {
+            let pool = &reporter.brute.db_pool;
+            // query
+            let query = r#"
+                INSERT INTO top_usr_pass_combo (
+                    id, username, password, amount
+                ) VALUES (
+                    $1, $2, $3, 1
+                ) ON CONFLICT (username, password) DO UPDATE SET
+                    amount = top_usr_pass_combo.amount + EXCLUDED.amount
+                    RETURNING id, username, password, amount;
+                "#;
+            let result = sqlx::query_as::<_, TopUsrPassCombo>(query)
+                .bind(Uuid::new_v4().as_simple().to_string())
+                .bind(model.username())
+                .bind(model.password())
+                .fetch_one(pool)
+                .await?;
+            Ok(result)
+        }
+    }
 }
