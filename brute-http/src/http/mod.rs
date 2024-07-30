@@ -23,7 +23,7 @@ pub async fn serve() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http());
 
     // http server
-    info!("Server is now listening on {}", listen_on);
+    info!("Server is now listening on {}.", listen_on);
     let tcp_listener = TcpListener::bind(listen_on).await.unwrap();
     axum::serve(
         tcp_listener,
