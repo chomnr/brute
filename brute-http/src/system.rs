@@ -104,8 +104,8 @@ pub mod reporter {
             BruteReporter { brute }
         }
 
-        pub async fn start_report(&self, individual: Individual) {
-            let individual = Individual::report(self.clone(), individual).await.unwrap();
+        pub async fn start_report(&self, payload: Individual) {
+            let individual = Individual::report(self.clone(), payload).await.unwrap();
         }
     }
 
