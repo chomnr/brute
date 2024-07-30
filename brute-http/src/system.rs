@@ -80,16 +80,19 @@ impl Handler<Individual> for BruteSystem {
 /////////////
 
 pub mod reporter {
-    use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
-    use uuid::Uuid;
-    use crate::model::Individual;
     use super::{Brute, BruteSystem};
+    use crate::model::{Individual, ProcessedIndividual};
+    use std::{
+        sync::Arc,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+    use uuid::Uuid;
 
     pub trait Reporter {}
 
     #[allow(async_fn_in_trait)]
-    pub trait Reportable<T: Reporter> {
-        async fn report(reporter: T, model: Self) -> Option<Self>
+    pub trait Reportable<T: Reporter, R> {
+        async fn report(reporter: T, model: R) -> Option<Self>
         where
             Self: Sized;
     }
@@ -106,6 +109,9 @@ pub mod reporter {
 
         pub async fn start_report(&self, payload: Individual) {
             let individual = Individual::report(self.clone(), payload).await.unwrap();
+            let processed_individual = ProcessedIndividual::report(self.clone(), individual)
+                .await
+                .unwrap();
         }
     }
 
@@ -115,15 +121,19 @@ pub mod reporter {
     // DATA //
     /////////
 
-    impl Reportable<BruteReporter<BruteSystem>> for Individual {
-        async fn report(reporter: BruteReporter< BruteSystem>, mut model: Self) -> Option<Self> {
+    // individual
+    impl Reportable<BruteReporter<BruteSystem>, Individual> for Individual {
+        async fn report(reporter: BruteReporter<BruteSystem>, mut model: Self) -> Option<Self> {
             let pool = &reporter.brute.db_pool;
             let query = r#"
                 INSERT INTO individual (id, username, password, ip, protocol, timestamp)
                 VALUES ($1, $2, $3, $4, $5, $6)
             "#;
             model.id = Uuid::new_v4().as_simple().to_string();
-            model.timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+            model.timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as i64;
             sqlx::query(query)
                 .bind(&model.id())
                 .bind(&model.username())
@@ -135,6 +145,36 @@ pub mod reporter {
                 .await
                 .unwrap();
             Some(model)
+        }
+    }
+
+    // processed individual
+    impl Reportable<BruteReporter<BruteSystem>, Individual> for ProcessedIndividual {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            model: Individual,
+        ) -> Option<ProcessedIndividual> {
+            let query = r#"
+                INSERT INTO processed_individual (
+                id, username, password, ip, protocol, hostname, city, region, country, loc, org, postal,
+                asn, asn_name, asn_domain, asn_route, asn_type,
+                company_name, company_domain, company_type,
+                vpn, proxy, tor, relay, hosting, service,
+                abuse_address, abuse_country, abuse_email, abuse_name, abuse_network, abuse_phone,
+                domain_ip, domain_total, domains, timestamp
+                ) VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                    $13, $14, $15, $16, $17,
+                    $18, $19, $20,
+                    $21, $22, $23, $24, $25, $26,
+                    $27, $28, $29, $30, $31, $32,
+                    $33, $34, $35, $36
+                );"#;
+            // check if ip already exists
+            // if ip already exists get the last_ip that was inserted
+            // check the timestamp if the timestamp exceeds 5 minutes then
+            // hit the ipinfo api again if not then just retrieve the data. (just helps with accuracy...).
+            todo!()
         }
     }
 }
