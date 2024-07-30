@@ -7,7 +7,7 @@ use serde::Deserialize;
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 
 use crate::{
-    model::{Individual, IndividualBuilder},
+    model::IndividualBuilder,
     system::BruteSystem,
 };
 
@@ -18,6 +18,11 @@ pub fn post_router() -> Router {
         .layer(ValidateRequestHeaderLayer::bearer(&bearer_token))
 }
 
+////////////
+/// POST ///
+///////////////////////////
+/// brute/attacker/add ///
+/////////////////////////
 #[derive(Deserialize)]
 struct IndividualPayload {
     username: String,
