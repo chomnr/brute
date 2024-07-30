@@ -154,7 +154,7 @@ pub mod reporter {
             reporter: BruteReporter<BruteSystem>,
             model: Individual,
         ) -> Option<ProcessedIndividual> {
-            let query = r#"
+            let insert_query = r#"
                 INSERT INTO processed_individual (
                 id, username, password, ip, protocol, hostname, city, region, country, loc, org, postal,
                 asn, asn_name, asn_domain, asn_route, asn_type,
