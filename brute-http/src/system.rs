@@ -95,7 +95,7 @@ pub mod reporter {
 
     #[allow(async_fn_in_trait)]
     pub trait Reportable<T: Reporter, R> {
-        async fn report(reporter: T, model: R) -> Option<Self>
+        async fn report(reporter: T, model: R) -> anyhow::Result<Self>
         where
             Self: Sized;
     }
@@ -112,9 +112,7 @@ pub mod reporter {
 
         pub async fn start_report(&self, payload: Individual) {
             let individual = Individual::report(self.clone(), payload).await.unwrap();
-            let processed_individual = ProcessedIndividual::report(self.clone(), individual)
-                .await
-                .unwrap();
+            let processed_individual = ProcessedIndividual::report(self.clone(), individual).await.unwrap();
         }
     }
 
@@ -126,7 +124,10 @@ pub mod reporter {
 
     // individual
     impl Reportable<BruteReporter<BruteSystem>, Individual> for Individual {
-        async fn report(reporter: BruteReporter<BruteSystem>, mut model: Self) -> Option<Self> {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: Self,
+        ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let query = r#"
                 INSERT INTO individual (id, username, password, ip, protocol, timestamp)
@@ -145,35 +146,31 @@ pub mod reporter {
                 .bind(&model.protocol())
                 .bind(model.timestamp())
                 .execute(pool)
-                .await
-                .unwrap();
-            Some(model)
+                .await?;
+            Ok(model)
         }
     }
 
     // processed individual
-    
+
     impl Reportable<BruteReporter<BruteSystem>, Individual> for ProcessedIndividual {
         async fn report(
             reporter: BruteReporter<BruteSystem>,
             model: Individual,
-        ) -> Option<ProcessedIndividual> {
-            // mistakes were made i probably could have just used the 
+        ) -> anyhow::Result<ProcessedIndividual> {
+            // mistakes were made i probably could have just used the
             // structs that were given to me by ipinfo. it is what is.
             // you live you learn. chomnr 4:01 am florida 7/30/2024.
             let pool = &reporter.brute.db_pool;
             let ipinfo = &reporter.brute.ipinfo_client;
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as i64;
-    
+            let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as i64;
+
             let select_query = "SELECT *
                 FROM processed_individual
                 WHERE ip = $1
                 ORDER BY timestamp DESC
                 LIMIT 1;";
-    
+
             let insert_query = r#"
                 INSERT INTO processed_individual (
                 id, username, password, ip, protocol, hostname, city, region, country, loc, org, postal,
@@ -190,7 +187,7 @@ pub mod reporter {
                     $27, $28, $29, $30, $31, $32,
                     $33, $34, $35, $36
                 ) RETURNING *;"#;
-    
+
             let asn_default = AsnDetails {
                 asn: String::default(),
                 name: String::default(),
@@ -198,13 +195,13 @@ pub mod reporter {
                 route: String::default(),
                 asn_type: String::default(),
             };
-    
+
             let company_default = CompanyDetails {
                 name: String::default(),
                 domain: String::default(),
                 company_type: String::default(),
             };
-    
+
             let abuse_default = AbuseDetails {
                 address: String::default(),
                 country: String::default(),
@@ -213,7 +210,7 @@ pub mod reporter {
                 network: String::default(),
                 phone: String::default(),
             };
-    
+
             let privacy_default = PrivacyDetails {
                 vpn: false,
                 proxy: false,
@@ -222,30 +219,30 @@ pub mod reporter {
                 hosting: false,
                 service: String::default(),
             };
-    
+
             let domain_default = DomainsDetails {
                 ip: Some(String::default()),
                 total: 0,
                 domains: Vec::default(),
             };
-    
+
             let ip_exists = sqlx::query_as::<_, ProcessedIndividual>(select_query)
                 .bind(&model.ip())
                 .fetch_optional(pool)
                 .await
                 .unwrap();
-    
+
             let pi = if let Some(result) = ip_exists {
                 if now - result.timestamp > 300_000 {
                     let mut ipinfo_lock = ipinfo.lock();
-                    let ip_details = ipinfo_lock.lookup(&model.ip()).await.unwrap();
-    
+                    let ip_details = ipinfo_lock.lookup(&model.ip()).await?;
+
                     let asn_details = ip_details.asn.as_ref().unwrap_or(&asn_default);
                     let company_details = ip_details.company.as_ref().unwrap_or(&company_default);
                     let abuse_details = ip_details.abuse.as_ref().unwrap_or(&abuse_default);
                     let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
                     let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
-    
+
                     sqlx::query_as::<_, ProcessedIndividual>(insert_query)
                         .bind(&model.id())
                         .bind(&model.username())
@@ -284,8 +281,7 @@ pub mod reporter {
                         .bind(&domain_details.domains)
                         .bind(model.timestamp)
                         .fetch_one(pool)
-                        .await
-                        .unwrap()
+                        .await?
                 } else {
                     sqlx::query_as::<_, ProcessedIndividual>(insert_query)
                         .bind(&model.id())
@@ -325,19 +321,18 @@ pub mod reporter {
                         .bind(&result.domains())
                         .bind(model.timestamp)
                         .fetch_one(pool)
-                        .await
-                        .unwrap()
+                        .await?
                 }
             } else {
                 let mut ipinfo_lock = ipinfo.lock();
                 let ip_details = ipinfo_lock.lookup(&model.ip()).await.unwrap();
-    
+
                 let asn_details = ip_details.asn.as_ref().unwrap_or(&asn_default);
                 let company_details = ip_details.company.as_ref().unwrap_or(&company_default);
                 let abuse_details = ip_details.abuse.as_ref().unwrap_or(&abuse_default);
                 let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
                 let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
-    
+
                 sqlx::query_as::<_, ProcessedIndividual>(insert_query)
                     .bind(&model.id())
                     .bind(&model.username())
@@ -376,10 +371,9 @@ pub mod reporter {
                     .bind(&domain_details.domains)
                     .bind(model.timestamp)
                     .fetch_one(pool)
-                    .await
-                    .unwrap()
+                    .await?
             };
-            Some(pi)
+            Ok(pi)
         }
     }
 }
