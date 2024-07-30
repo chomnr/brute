@@ -1,8 +1,8 @@
 use actix::System;
 use anyhow::Result;
-use brute_http::{config::Config, http::serve};
+use brute_http::{config::Config, http::serve, system::BruteSystem};
 use clap::Parser;
-use ipinfo::IpInfoConfig;
+use ipinfo::{IpInfo, IpInfoConfig};
 use log::info;
 use sqlx::
     postgres::PgPoolOptions
@@ -39,6 +39,10 @@ fn main() -> Result<()> {
             .connect(&config.database_url)
             .await
             .unwrap();
+        
+        // Ensure the database is migrated correctly on startup.
+        sqlx::migrate!("..\\migrations\\").run(&db).await.unwrap();
+        info!("Migration process completed successfully.");
 
         // Create an instance of `IpInfoConfig` with the
         // provided token and default settings for other fields.
@@ -46,10 +50,11 @@ fn main() -> Result<()> {
             token: Some(config.ipinfo_token.to_string()),
             ..Default::default()
         };
-        
-        // Ensure the database is migrated correctly on startup.
-        sqlx::migrate!("..\\migrations\\").run(&db).await.unwrap();
-        info!("Migration process completed successfully.");
+        let ipinfo_client = IpInfo::new(ipinfo_config).unwrap();
+
+        // setup actor
+        let brute_system = BruteSystem::new_brute(db, ipinfo_client).await;
+        let brute_actor = todo!(); // call .start() on brute_system
 
         // Start listening.
         serve().await.unwrap();
