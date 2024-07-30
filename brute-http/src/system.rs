@@ -47,10 +47,10 @@ impl Actor for BruteSystem {
     type Context = Context<Self>;
 }
 
-impl Handler<Request<Individual>> for BruteSystem {
+impl Handler<Individual> for BruteSystem {
     type Result = ();
 
-    fn handle(&mut self, msg: Request<Individual>, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: Individual, ctx: &mut Self::Context) -> Self::Result {
         let pool = self.db_pool.clone();
         let ipinfo = self.ipinfo_client.clone();
 
@@ -58,11 +58,4 @@ impl Handler<Request<Individual>> for BruteSystem {
 
         ctx.spawn(fut.into_actor(self));
     }
-}
-
-////////////////////////
-// REQUEST FOR ACTOR //
-//////////////////////
-pub struct Request<T> {
-    payload: T,
 }

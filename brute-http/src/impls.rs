@@ -2,23 +2,12 @@
 
 use actix::Message;
 
-use crate::{
-    model::{Individual, IndividualBuilder, ProcessedIndividualBuilder},
-    system::Request,
-};
+use crate::model::Individual;
 
 /////////////////
 // INDIVIDUAL //
 ///////////////
 
-impl Message for Request<Individual> {
+impl Message for Individual {
     type Result = ();
-}
-
-///////////////////////////
-// PROCESSED INDIVIDUAL //
-/////////////////////////
-
-pub fn test() {
-    
 }
