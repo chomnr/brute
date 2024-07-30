@@ -7,12 +7,12 @@ use actix::Message;
 #[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
 #[builder(setter(into))]
 pub struct Individual {
-    id: String,
+    pub id: String,
     username: String,
     password: String,
     ip: String,
     protocol: String,
-    timestamp: i64,
+    pub timestamp: i64,
 }
 
 // allow as a message in actix actor.
@@ -23,7 +23,7 @@ impl Message for Individual {
 #[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
 #[builder(setter(into))]
 pub struct ProcessedIndividual {
-    id: String,
+    pub id: String,
     username: String,
     password: String,
     ip: String,
@@ -58,7 +58,7 @@ pub struct ProcessedIndividual {
     domain_ip: Option<String>,
     domain_total: Option<f64>,
     domains: Option<Vec<String>>,
-    timestamp: i64,
+    pub timestamp: i64,
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]
