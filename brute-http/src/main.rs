@@ -8,6 +8,7 @@ use sqlx::
     postgres::PgPoolOptions
 ;
 
+
 fn main() -> Result<()> {
     // Load environment variables from .env file.
     // Fails if .env file not found, not readable or invalid.
@@ -21,6 +22,7 @@ fn main() -> Result<()> {
         .filter_module("tracing", log::LevelFilter::Off)
         .filter_module("sqlx", log::LevelFilter::Off)
         .filter_module("tower_http", log::LevelFilter::Off)
+        .filter_module("hyper", log::LevelFilter::Off)
         .init();
 
     // Parse command-line arguments and environment variables to
@@ -51,7 +53,7 @@ fn main() -> Result<()> {
             token: Some(config.ipinfo_token.to_string()),
             ..Default::default()
         };
-        let ipinfo_client = IpInfo::new(ipinfo_config).unwrap();
+        let mut ipinfo_client = IpInfo::new(ipinfo_config).unwrap();
 
         // setup actor
         let brute_system = BruteSystem::new_brute(db, ipinfo_client).await;
