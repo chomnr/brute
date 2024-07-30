@@ -30,20 +30,14 @@ async fn post_add_attack(
     Json(payload): Json<IndividualPayload>,
 ) -> Result<StatusCode, StatusCode> {
     let individual = IndividualBuilder::default()
-        .id(uuid::Uuid::new_v4().as_simple().to_string())
+        .id("doesn't actually matter it gets set by the handler anyway this and the timestamp.")
         .username(payload.username)
         .password(payload.password)
         .ip(payload.ip)
         .protocol(payload.protocol)
-        .timestamp(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as i64,
-        )
+        .timestamp(0)
         .build()
         .map_err(|_| StatusCode::BAD_REQUEST)?;
-
     match actor.send(individual).await {
         Ok(_) => Ok(StatusCode::OK),
         Err(_) => Err(StatusCode::BAD_REQUEST),
