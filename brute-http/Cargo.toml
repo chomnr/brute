@@ -28,6 +28,13 @@ parking_lot = "0.12.3"
 clap = { version = "4.5.11", features = ["derive", "env"] }
 derive_builder = "0.20.0"
 derive-getters = "0.4.0"
+[dependencies.uuid]
+version = "1.10.0"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]
 
 # axum = { version = "0.7.5", features = ["json"] }
 # serde = { version = "1.0.204", features = ["derive"] }
