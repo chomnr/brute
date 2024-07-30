@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
 use ipinfo::IpInfo;
+use log::info;
 use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
 
@@ -13,6 +14,7 @@ pub trait Brute {}
 // SYSTEM /w ACTOR //
 ////////////////////
 
+#[derive(Clone)]
 pub struct BruteSystem {
     /// PostgreSQL connection pool.
     pub db_pool: Pool<Postgres>,
@@ -46,8 +48,8 @@ impl BruteSystem {
 
     /// Reports data to the database.
     pub fn reporter(&self) -> BruteReporter<BruteSystem> {
-        // Clone the BruteSystem if possible or wrap it in RefCell
-        BruteReporter::new(self)
+        let brute_system = Arc::new(self.clone());
+        BruteReporter::new(brute_system)
     }
 }
 
@@ -61,11 +63,14 @@ impl Handler<Individual> for BruteSystem {
     type Result = ();
 
     fn handle(&mut self, msg: Individual, ctx: &mut Self::Context) -> Self::Result {
-        //let pool = self.db_pool.clone();
-        //let ipinfo = self.ipinfo_client.clone();
         let reporter = self.reporter();
-        let fut = Box::pin(async move { println!("requested recieved") });
 
+        let fut = Box::pin(async move {
+            reporter.start_report(msg).await;
+            info!("Received a new attacker")
+        });
+
+        // Spawn the future as an actor message.
         ctx.spawn(fut.into_actor(self));
     }
 }
@@ -75,6 +80,8 @@ impl Handler<Individual> for BruteSystem {
 /////////////
 
 pub mod reporter {
+    use std::sync::Arc;
+
     use crate::model::Individual;
 
     use super::{Brute, BruteSystem};
@@ -82,36 +89,50 @@ pub mod reporter {
     pub trait Reporter {}
 
     pub trait Reportable<T: Reporter> {
-        async fn handle(reporter: T, model: Self) -> Self;
+        async fn report(reporter: T, model: Self) -> Option<Self>
+        where
+            Self: Sized;
     }
 
     #[derive(Clone)]
-    pub struct BruteReporter<'a, T: Brute> {
-        brute: &'a T,
+    pub struct BruteReporter<T: Brute> {
+        brute: Arc<T>, // Use Arc to handle shared ownership
     }
 
-    impl<'a> BruteReporter<'a, BruteSystem> {
-        pub fn new(brute: &'a BruteSystem) -> Self {
+    impl BruteReporter<BruteSystem> {
+        pub fn new(brute: Arc<BruteSystem>) -> Self {
             BruteReporter { brute }
         }
 
-        pub async fn start_report(self, individual: Individual) {
-            Individual::handle(self, individual).await;
+        pub async fn start_report(&self, individual: Individual) {
+            Individual::report(self.clone(), individual).await;
         }
     }
 
-    impl<'a> Reporter for BruteReporter<'a, BruteSystem> {}
+    impl Reporter for BruteReporter<BruteSystem> {}
 
     ///////////
     // DATA //
     /////////
-    
-    impl<'a> Reportable<BruteReporter<'a, BruteSystem>> for Individual {
-        async fn handle(reporter: BruteReporter<'a, BruteSystem>, model: Self) -> Self {
+
+    impl Reportable<BruteReporter<BruteSystem>> for Individual {
+        async fn report(reporter: BruteReporter< BruteSystem>, model: Self) -> Option<Self> {
             let pool = &reporter.brute.db_pool;
-            // do the queryness..
-            todo!()
+            let query = r#"
+                INSERT INTO individual (id, username, password, ip, protocol, timestamp)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            "#;
+            sqlx::query(query)
+                .bind(&model.id())
+                .bind(&model.username())
+                .bind(&model.password())
+                .bind(&model.ip())
+                .bind(&model.protocol())
+                .bind(model.timestamp())
+                .execute(pool)
+                .await
+                .unwrap();
+            None
         }
     }
-    
 }
