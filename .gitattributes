@@ -1,1 +1,3 @@
-*.c linguist-vendored
+* linguist-vendored
+!*.rs
+!*.sql
