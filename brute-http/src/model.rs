@@ -1,141 +1,147 @@
-#[derive(Debug, sqlx::FromRow)]
+#[macro_use]
+use derive_builder::Builder;
+use derive_getters::Getters;
+
+#[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
+#[builder(setter(into))]
 pub struct Individual {
-    pub id: String,
-    pub username: String,
-    pub password: String,
-    pub ip: String,
-    pub protocol: String,
-    pub timestamp: i64,
+    id: String,
+    username: String,
+    password: String,
+    ip: String,
+    protocol: String,
+    timestamp: i64,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
+#[builder(setter(into))]
 pub struct ProcessedIndividual {
-    pub id: String,
-    pub username: String,
-    pub password: String,
-    pub ip: String,
-    pub protocol: String,
-    pub hostname: Option<String>,
-    pub city: Option<String>,
-    pub region: Option<String>,
-    pub country: Option<String>,
-    pub loc: Option<String>,
-    pub org: Option<String>,
-    pub postal: Option<String>,
-    pub asn: Option<String>,
-    pub asn_name: Option<String>,
-    pub asn_domain: Option<String>,
-    pub asn_route: Option<String>,
-    pub asn_type: Option<String>,
-    pub company_name: Option<String>,
-    pub company_domain: Option<String>,
-    pub company_type: Option<String>,
-    pub vpn: Option<bool>,
-    pub proxy: Option<bool>,
-    pub tor: Option<bool>,
-    pub relay: Option<bool>,
-    pub hosting: Option<bool>,
-    pub service: Option<String>,
-    pub abuse_address: Option<String>,
-    pub abuse_country: Option<String>,
-    pub abuse_email: Option<String>,
-    pub abuse_name: Option<String>,
-    pub abuse_network: Option<String>,
-    pub abuse_phone: Option<String>,
-    pub domain_ip: Option<String>,
-    pub domain_total: Option<f64>,
-    pub domains: Option<Vec<String>>,
-    pub timestamp: i64,
+    id: String,
+    username: String,
+    password: String,
+    ip: String,
+    protocol: String,
+    hostname: Option<String>,
+    city: Option<String>,
+    region: Option<String>,
+    country: Option<String>,
+    loc: Option<String>,
+    org: Option<String>,
+    postal: Option<String>,
+    asn: Option<String>,
+    asn_name: Option<String>,
+    asn_domain: Option<String>,
+    asn_route: Option<String>,
+    asn_type: Option<String>,
+    company_name: Option<String>,
+    company_domain: Option<String>,
+    company_type: Option<String>,
+    vpn: Option<bool>,
+    proxy: Option<bool>,
+    tor: Option<bool>,
+    relay: Option<bool>,
+    hosting: Option<bool>,
+    service: Option<String>,
+    abuse_address: Option<String>,
+    abuse_country: Option<String>,
+    abuse_email: Option<String>,
+    abuse_name: Option<String>,
+    abuse_network: Option<String>,
+    abuse_phone: Option<String>,
+    domain_ip: Option<String>,
+    domain_total: Option<f64>,
+    domains: Option<Vec<String>>,
+    timestamp: i64,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopUsername {
-    pub username: String,
-    pub amount: i32,
+    username: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopPassword {
-    pub password: String,
-    pub amount: i32,
+    password: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopIp {
-    pub ip: String,
-    pub amount: i32,
+    ip: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopProtocol {
-    pub protocol: String,
-    pub amount: i32,
+    protocol: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopCountry {
-    pub country: String,
-    pub amount: i32,
+    country: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopCity {
-    pub city: String,
-    pub amount: i32,
+    city: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopRegion {
-    pub region: String,
-    pub amount: i32,
+    region: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopTimezone {
-    pub timezone: String,
-    pub amount: i32,
+    timezone: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopOrg {
-    pub org: String,
-    pub amount: i32,
+    org: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopPostal {
-    pub postal: String,
-    pub amount: i32,
+    postal: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopUsrPassCombo {
-    pub id: String,
-    pub username: String,
-    pub password: String,
-    pub amount: i32,
+    id: String,
+    username: String,
+    password: String,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
-pub struct TopHourly{
-    pub timestamp: i64,
-    pub amount: i32,
+#[derive(Debug, sqlx::FromRow, Getters)]
+pub struct TopHourly {
+    timestamp: i64,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopDaily {
-    pub timestamp: i64,
-    pub amount: i32,
+    timestamp: i64,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopWeekly {
-    pub timestamp: i64,
-    pub amount: i32,
+    timestamp: i64,
+    amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopYearly {
-    pub timestamp: i64,
-    pub amount: i32,
+    timestamp: i64,
+    amount: i32,
 }
