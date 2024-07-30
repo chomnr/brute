@@ -4,7 +4,7 @@ use derive_getters::Getters;
 
 use actix::Message;
 
-#[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
+#[derive(Default, Clone, Debug, sqlx::FromRow, Builder, Getters)]
 #[builder(setter(into))]
 pub struct Individual {
     pub id: String,
@@ -20,7 +20,7 @@ impl Message for Individual {
     type Result = ();
 }
 
-#[derive(Default, Debug, sqlx::FromRow, Builder, Getters)]
+#[derive(Default, Clone, Debug, sqlx::FromRow, Builder, Getters)]
 #[builder(setter(into))]
 pub struct ProcessedIndividual {
     pub id: String,
@@ -31,6 +31,7 @@ pub struct ProcessedIndividual {
     hostname: Option<String>,
     city: Option<String>,
     region: Option<String>,
+    timezone: String,
     country: Option<String>,
     loc: Option<String>,
     org: Option<String>,
