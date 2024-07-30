@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
-use actix::{Actor, Context};
+use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
 use ipinfo::IpInfo;
 use parking_lot::Mutex;
 use sqlx::{Pool, Postgres};
+
+use crate::model::Individual;
 
 //////////////////////
 // SYSTEM /w ACTOR //
@@ -45,25 +47,22 @@ impl Actor for BruteSystem {
     type Context = Context<Self>;
 }
 
-////////////////////////
-// REQUEST FOR ACTOR //
-//////////////////////
-pub struct Request<T> {
-    payload: T,
-}
-
-/*
 impl Handler<Request<Individual>> for BruteSystem {
     type Result = ();
-    
+
     fn handle(&mut self, msg: Request<Individual>, ctx: &mut Self::Context) -> Self::Result {
         let pool = self.db_pool.clone();
         let ipinfo = self.ipinfo_client.clone();
 
         let fut = Box::pin(async move { println!("requested recieved") });
 
-        //ctx.spawn(fut.into_actor(self));
-        Ok(StatusCode::OK)
+        ctx.spawn(fut.into_actor(self));
     }
 }
-*/
+
+////////////////////////
+// REQUEST FOR ACTOR //
+//////////////////////
+pub struct Request<T> {
+    payload: T,
+}
