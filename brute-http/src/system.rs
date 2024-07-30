@@ -81,7 +81,7 @@ impl Handler<Individual> for BruteSystem {
 
 pub mod reporter {
     use super::{Brute, BruteSystem};
-    use crate::model::{Individual, ProcessedIndividual};
+    use crate::model::{Individual, ProcessedIndividual, TopUsrPassCombo};
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use std::{
         sync::Arc,
@@ -374,4 +374,15 @@ pub mod reporter {
             Ok(pi)
         }
     }
+    
+    // top 
+    impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopUsrPassCombo {
+        async fn report(
+            reporter: BruteReporter<BruteSystem>,
+            mut model: ProcessedIndividual,
+        ) -> anyhow::Result<Self> {
+            todo!()
+        }
+    }
+
 }

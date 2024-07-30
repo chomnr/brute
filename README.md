@@ -161,7 +161,7 @@ impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopUsrPassC
     }
 }
 ```
-### Integrating the metric to .add()
+### Integrating the metric to .start_report()
 ```rust
 // brute.rs
 // locate add(..) and add the metric.
