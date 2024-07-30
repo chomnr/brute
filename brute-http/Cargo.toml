@@ -26,7 +26,8 @@ dotenvy = "0.15.7"
 anyhow = "1.0.86"
 parking_lot = "0.12.3"
 clap = { version = "4.5.11", features = ["derive", "env"] }
-
+derive_builder = "0.20.0"
+derive-getters = "0.4.0"
 
 # axum = { version = "0.7.5", features = ["json"] }
 # serde = { version = "1.0.204", features = ["derive"] }
