@@ -45,6 +45,13 @@ impl Actor for BruteSystem {
     type Context = Context<Self>;
 }
 
+////////////////////////
+// REQUEST FOR ACTOR //
+//////////////////////
+pub struct Request<T> {
+    payload: T,
+}
+
 /*
 impl Handler<Request<Individual>> for BruteSystem {
     type Result = ();
