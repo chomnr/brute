@@ -29,8 +29,8 @@ pub async fn serve() -> anyhow::Result<()> {
         tcp_listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .await
-    .context("Could not run HTTP Server")
+    .await.unwrap();
+    Ok(())
 }
 
 fn api_router() -> Router {
