@@ -80,7 +80,9 @@ impl Handler<Individual> for BruteSystem {
 /////////////
 
 pub mod reporter {
-    use std::sync::Arc;
+    use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
+
+    use uuid::Uuid;
 
     use crate::model::Individual;
 
@@ -105,7 +107,7 @@ pub mod reporter {
         }
 
         pub async fn start_report(&self, individual: Individual) {
-            Individual::report(self.clone(), individual).await;
+            let individual = Individual::report(self.clone(), individual).await.unwrap();
         }
     }
 
@@ -116,12 +118,14 @@ pub mod reporter {
     /////////
 
     impl Reportable<BruteReporter<BruteSystem>> for Individual {
-        async fn report(reporter: BruteReporter< BruteSystem>, model: Self) -> Option<Self> {
+        async fn report(reporter: BruteReporter< BruteSystem>, mut model: Self) -> Option<Self> {
             let pool = &reporter.brute.db_pool;
             let query = r#"
                 INSERT INTO individual (id, username, password, ip, protocol, timestamp)
                 VALUES ($1, $2, $3, $4, $5, $6)
             "#;
+            model.id = Uuid::new_v4().as_simple().to_string();
+            model.timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
             sqlx::query(query)
                 .bind(&model.id())
                 .bind(&model.username())
@@ -132,7 +136,7 @@ pub mod reporter {
                 .execute(pool)
                 .await
                 .unwrap();
-            None
+            Some(model)
         }
     }
 }
