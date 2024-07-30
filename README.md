@@ -77,7 +77,7 @@ sudo systemctl restart sshd
 ### Pam
 Before proceeding with the next steps, we need to compile the PAM module. To do that, follow these instructions:
 ```
-sudo git clone https://github.com/bruteexposed/pam.git
+sudo git clone https://github.com/notpointless/brute_pam
 cmake .
 make
 # the file should now be in /lib/pam_module.so ... you can rename it to pam_brute.so if you wish.
