@@ -8,6 +8,7 @@ CREATE TABLE processed_individual (
     hostname VARCHAR(255),
     city VARCHAR(255),
     region VARCHAR(255),
+    timezone VARCHAR(255),
     country VARCHAR(3),
     loc VARCHAR(255),
     org VARCHAR(255),
