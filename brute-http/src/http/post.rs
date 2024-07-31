@@ -15,9 +15,9 @@ pub fn post_router() -> Router {
 
 ////////////
 /// POST //
-///////////////////////////
-/// brute/attacker/add ///
 /////////////////////////
+/// brute/attack/add ///
+///////////////////////
 #[derive(Deserialize)]
 struct IndividualPayload {
     username: String,
