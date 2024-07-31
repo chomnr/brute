@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use derive_getters::Getters;
 
 use actix::Message;
+use actix::ResponseFuture;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -116,7 +117,7 @@ pub struct ProcessedIndividual {
 }
 
 impl Message for RequestWithLimit<ProcessedIndividual> {
-    type Result = Vec<ProcessedIndividual>;
+    type Result = Result<Vec<ProcessedIndividual>, StatusCode>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]
