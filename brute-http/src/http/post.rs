@@ -4,10 +4,7 @@ use dotenvy::var;
 use serde::Deserialize;
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 
-use crate::{
-    model::IndividualBuilder,
-    system::BruteSystem,
-};
+use crate::{model::Individual, system::BruteSystem, validator::Validate};
 
 pub fn post_router() -> Router {
     let bearer_token = var("BEARER_TOKEN").unwrap();
@@ -31,18 +28,19 @@ struct IndividualPayload {
 async fn post_add_attack(
     Extension(actor): Extension<Addr<BruteSystem>>,
     Json(payload): Json<IndividualPayload>,
-) -> Result<StatusCode, StatusCode> {
-    let individual = IndividualBuilder::default()
-        .id("doesn't actually matter it gets set by the handler anyway this and the timestamp.")
-        .username(payload.username)
-        .password(payload.password)
-        .ip(payload.ip)
-        .protocol(payload.protocol)
-        .timestamp(0)
-        .build()
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+) -> Result<StatusCode, (StatusCode, String)> {
+    let individual = Individual::new_short(
+        payload.username,
+        payload.password,
+        payload.ip,
+        payload.protocol,
+    );
+    individual.validate()?;
     match actor.send(individual).await {
         Ok(_) => Ok(StatusCode::OK),
-        Err(_) => Err(StatusCode::BAD_REQUEST),
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Something went wrong on our side.".to_string(),
+        )),
     }
 }
