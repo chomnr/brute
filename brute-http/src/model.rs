@@ -114,6 +114,10 @@ pub struct ProcessedIndividual {
     pub timestamp: i64,
 }
 
+impl Message for ProcessedIndividual {
+    type Result = ();
+}
+
 #[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopUsername {
     username: String,
