@@ -1,3 +1,5 @@
 brute-http/.env
 brute-http/target
 brute-http/certs/*
+# Don't exclude readme
+!brute-http/certs/README.md
