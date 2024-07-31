@@ -1,11 +1,14 @@
+use std::path::Path;
+
 use actix::{System, Actor};
 use anyhow::Result;
 use brute_http::{config::Config, http::serve, system::BruteSystem};
 use clap::Parser;
+use dotenvy::var;
 use ipinfo::{IpInfo, IpInfoConfig};
 use log::info;
-use sqlx::
-    postgres::PgPoolOptions
+use sqlx::{migrate::Migrator, 
+    postgres::PgPoolOptions}
 ;
 
 
@@ -45,9 +48,18 @@ fn main() -> Result<()> {
             .await
             .unwrap();
         
-        // Ensure the database is migrated correctly on startup.
-        sqlx::migrate!("..\\migrations\\").run(&db).await.unwrap();
-        info!("Migration process completed successfully.");
+        // Ensure the database is migrated correctly on startup. 
+        // Docker's doesn't support this sort of path so we need
+        // to improvise.
+        let is_docker: bool = var("RUNNING_IN_DOCKER").unwrap_or(false.to_string()).parse().unwrap();
+        if !is_docker {
+            //sqlx::migrate!("..\\migrations\\").run(&db).await.unwrap();
+            Migrator::new(Path::new("..\\migrations\\")).await.unwrap();
+            info!("Migration process completed successfully.");
+        } else {
+            Migrator::new(Path::new("./migrations")).await.unwrap();
+            info!("(Docker) Migration process completed successfully.");
+        }
 
         // Create an instance of `IpInfoConfig` with the
         // provided token and default settings for other fields.
