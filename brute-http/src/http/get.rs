@@ -25,6 +25,11 @@ struct LimitParameter {
 
 // todo add websockets... maybe...
 
+///////////
+/// GET //
+////////////////////////////////////////////
+/// brute/stats/attacker?limit={amount} ///
+//////////////////////////////////////////
 async fn get_attacker(
     Extension(actor): Extension<Addr<BruteSystem>>,
     Query(params): Query<LimitParameter>,
