@@ -287,7 +287,6 @@ pub mod reporter {
                 domains: Vec::default(),
             };
 
-            // Perform SQL operations
             let ip_exists = sqlx::query_as::<_, ProcessedIndividual>(select_query)
                 .bind(&model.ip())
                 .fetch_optional(pool)
