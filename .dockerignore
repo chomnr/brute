@@ -1,0 +1,11 @@
+# Ignore build artifacts
+brute-http/target/
+
+# Ignore temporary files
+brute-http/**/*.rs.bk
+brute-http/**/*.log
+
+# Ignore unnecessary directories
+.git/
+.gitignore
+.vscode/
