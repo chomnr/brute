@@ -22,8 +22,8 @@ pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
     let app = api_router()
         // Add a layer to access the instance of Brute
         .layer(Extension(brute_actor))
-        // Add a layer to limit the size of the request body to 60 KB
-        .layer(RequestBodyLimitLayer::new(60 * 1024))
+        // Add a layer to limit the size of the request body to 3 KB
+        .layer(RequestBodyLimitLayer::new(3 * 1024))
         // Add a layer for tracing HTTP requests
         .layer(TraceLayer::new_for_http());
 
