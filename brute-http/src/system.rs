@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
+use actix::{Actor, AsyncContext, Context, Handler, ResponseFuture, WrapFuture};
+use axum::http::StatusCode;
 use ipinfo::IpInfo;
 use log::{error, info};
 use reporter::BruteReporter;
@@ -94,7 +95,6 @@ impl Handler<Individual> for BruteSystem {
                     );
                 }
                 Err(e) => {
-                    // Print an error message without panicking.
                     error!("Failed to process report: {}", e);
                 }
             }
@@ -105,26 +105,35 @@ impl Handler<Individual> for BruteSystem {
     }
 }
 
-///////////////////////////////////
-// PROCESSED INDIVIDUAL MESSAGE //
-/////////////////////////////////
+//////////////////////////////////
+// PROCESSEDINDIVIDUAL MESSAGE //
+////////////////////////////////
 impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
-    type Result = Vec<ProcessedIndividual>;
+    type Result = ResponseFuture<Result<Vec<ProcessedIndividual>, StatusCode>>;
+
     fn handle(
         &mut self,
         msg: RequestWithLimit<ProcessedIndividual>,
-        ctx: &mut Self::Context,
+        _: &mut Self::Context,
     ) -> Self::Result {
-        let fut = Box::pin(async move {
-            // just retrieve..
-            // hit the querry
-        });
+        let db_pool = self.db_pool.clone();
+        let limit = msg.limit;
 
-        // Spawn the future as an actor message.
-        ctx.spawn(fut.into_actor(self));
-        todo!()
+        let fut = async move {
+            let query = "SELECT * FROM processed_individual ORDER BY timestamp DESC LIMIT $1";
+            let rows = sqlx::query_as::<_, ProcessedIndividual>(query)
+                .bind(limit as i64)
+                .fetch_all(&db_pool)
+                .await;
+            match rows {
+                Ok(rows) => Ok(rows),
+                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        };
+        Box::pin(fut)
     }
 }
+
 
 ///////////////
 // REPORTER //
@@ -178,8 +187,7 @@ pub mod reporter {
             let individual = Individual::report(&self, &payload).await?;
 
             // Report processed individual
-            let processed_individual =
-                ProcessedIndividual::report(&self, &individual).await?;
+            let processed_individual = ProcessedIndividual::report(&self, &individual).await?;
 
             // Report top statistics
             TopUsername::report(&self, &individual).await?;
@@ -825,27 +833,24 @@ pub mod reporter {
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopWeekly {
-        async fn report(
-            reporter: &BruteReporter<BruteSystem>,
-            _: &i64,
-        ) -> anyhow::Result<Self> {
+        async fn report(reporter: &BruteReporter<BruteSystem>, _: &i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_err(|e| anyhow::anyhow!("Failed to get system time: {}", e))?
                 .as_millis() as i64;
-    
+
             let select_query = r#"
                 SELECT *
                 FROM top_weekly
                 ORDER BY timestamp DESC
                 LIMIT 1;
             "#;
-    
+
             let top_weekly = sqlx::query_as::<_, TopWeekly>(select_query)
                 .fetch_optional(pool)
                 .await?;
-    
+
             match top_weekly {
                 Some(record) if now - record.timestamp > 604_800_000 => {
                     // Insert new record if it exceeds a week
@@ -853,11 +858,8 @@ pub mod reporter {
                         INSERT INTO top_weekly (timestamp, amount)
                         VALUES ($1, 1);
                     "#;
-                    sqlx::query(insert_query)
-                        .bind(now)
-                        .execute(pool)
-                        .await?;
-                    
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
                     Ok(TopWeekly {
                         timestamp: now,
                         amount: 1,
@@ -876,7 +878,7 @@ pub mod reporter {
                         .bind(record.timestamp)
                         .execute(pool)
                         .await?;
-                    
+
                     Ok(record)
                 }
                 None => {
@@ -885,11 +887,8 @@ pub mod reporter {
                         INSERT INTO top_weekly (timestamp, amount)
                         VALUES ($1, 1);
                     "#;
-                    sqlx::query(insert_query)
-                        .bind(now)
-                        .execute(pool)
-                        .await?;
-                    
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
                     Ok(TopWeekly {
                         timestamp: now,
                         amount: 1,
@@ -897,30 +896,27 @@ pub mod reporter {
                 }
             }
         }
-    }    
+    }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopYearly {
-        async fn report(
-            reporter: &BruteReporter<BruteSystem>,
-            _: &i64,
-        ) -> anyhow::Result<Self> {
+        async fn report(reporter: &BruteReporter<BruteSystem>, _: &i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_err(|e| anyhow::anyhow!("Failed to get system time: {}", e))?
                 .as_millis() as i64;
-    
+
             let select_query = r#"
                 SELECT *
                 FROM top_yearly
                 ORDER BY timestamp DESC
                 LIMIT 1;
             "#;
-    
+
             let top_yearly = sqlx::query_as::<_, TopYearly>(select_query)
                 .fetch_optional(pool)
                 .await?;
-    
+
             match top_yearly {
                 Some(record) if now - record.timestamp > 31_556_800_000 => {
                     // Insert new record if it exceeds a year
@@ -928,11 +924,8 @@ pub mod reporter {
                         INSERT INTO top_yearly (timestamp, amount)
                         VALUES ($1, 1);
                     "#;
-                    sqlx::query(insert_query)
-                        .bind(now)
-                        .execute(pool)
-                        .await?;
-                    
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
                     Ok(TopYearly {
                         timestamp: now,
                         amount: 1,
@@ -951,7 +944,7 @@ pub mod reporter {
                         .bind(record.timestamp)
                         .execute(pool)
                         .await?;
-                    
+
                     Ok(record)
                 }
                 None => {
@@ -960,11 +953,8 @@ pub mod reporter {
                         INSERT INTO top_yearly (timestamp, amount)
                         VALUES ($1, 1);
                     "#;
-                    sqlx::query(insert_query)
-                        .bind(now)
-                        .execute(pool)
-                        .await?;
-                    
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
                     Ok(TopYearly {
                         timestamp: now,
                         amount: 1,
@@ -972,5 +962,5 @@ pub mod reporter {
                 }
             }
         }
-    }    
+    }
 }
