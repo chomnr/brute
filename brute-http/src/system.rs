@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use actix::{Actor, AsyncContext, Context, Handler, ResponseFuture, WrapFuture};
 use axum::http::StatusCode;
 use ipinfo::IpInfo;

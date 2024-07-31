@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use actix::{System, Actor};
 use anyhow::Result;
 use brute_http::{config::Config, http::serve, system::BruteSystem};
@@ -10,7 +9,6 @@ use log::info;
 use sqlx::{migrate::Migrator, 
     postgres::PgPoolOptions}
 ;
-
 
 fn main() -> Result<()> {
     // Load environment variables from .env file.

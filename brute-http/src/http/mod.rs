@@ -1,8 +1,4 @@
-mod get;
-mod post;
-
 use std::net::SocketAddr;
-
 use actix::Addr;
 use axum::{Extension, Router};
 use dotenvy::var;
@@ -13,6 +9,9 @@ use tokio::net::TcpListener;
 use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
 
 use crate::system::BruteSystem;
+
+mod get;
+mod post;
 
 pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
     // environment variables
