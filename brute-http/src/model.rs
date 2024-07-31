@@ -52,8 +52,16 @@ impl Validate for Individual {
             return Err((StatusCode::BAD_REQUEST, "input validation error: username is empty.".to_string()))
         }
 
+        if self.username.len() > 255 {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: username is too long max is 255 characters.".to_string()))
+        }
+
         if self.password.is_empty() {
             return Err((StatusCode::BAD_REQUEST, "input validation error: password is empty.".to_string()))
+        }
+
+        if self.password.len() > 255 {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: password is too long max is 255 characters.".to_string()))
         }
 
         if self.ip.is_empty() {
@@ -62,6 +70,10 @@ impl Validate for Individual {
 
         if self.protocol.is_empty() {
             return Err((StatusCode::BAD_REQUEST, "input validation error: protocol is empty.".to_string()))
+        }
+
+        if self.protocol.len() > 50 {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: protocol is too long max is 50 characters.".to_string()))
         }
 
         let regex_ip = Regex::new(r#"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"#).unwrap();
