@@ -1,6 +1,5 @@
 # Ignore build artifacts
 brute-http/target/
-brute-http/.env
 
 # Ignore temporary files
 brute-http/**/*.rs.bk
