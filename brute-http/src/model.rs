@@ -1,11 +1,14 @@
-#[macro_use]
-use derive_builder::Builder;
+use std::net::IpAddr;
+
+use axum::http::StatusCode;
 use derive_getters::Getters;
 
 use actix::Message;
+use regex::Regex;
 
-#[derive(Default, Clone, Debug, sqlx::FromRow, Builder, Getters)]
-#[builder(setter(into))]
+use crate::validator::Validate;
+
+#[derive(Default, Clone, Debug, sqlx::FromRow,Getters)]
 pub struct Individual {
     pub id: String,
     username: String,
@@ -15,13 +18,62 @@ pub struct Individual {
     pub timestamp: i64,
 }
 
+impl Individual {
+    pub fn new(id: String, username: String, password: String, ip: String, protocol: String, timestamp: i64) -> Self {
+        Self {
+            id,
+            username,
+            password,
+            ip,
+            protocol,
+            timestamp,
+        }
+    }
+
+    pub fn new_short(username: String, password: String, ip: String, protocol: String) -> Self {
+        Self {
+            id: String::default(),
+            username,
+            password,
+            ip,
+            protocol,
+            timestamp: 0,
+        }
+    }
+}
+
 // allow as a message in actix actor.
 impl Message for Individual {
     type Result = ();
 }
 
-#[derive(Default, Clone, Debug, sqlx::FromRow, Builder, Getters)]
-#[builder(setter(into))]
+impl Validate for Individual {
+    fn validate(&self) -> anyhow::Result<(), (axum::http::StatusCode, String)> {
+        if self.username.is_empty() {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: username is empty.".to_string()))
+        }
+
+        if self.password.is_empty() {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: password is empty.".to_string()))
+        }
+
+        if self.ip.is_empty() {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: ip is empty.".to_string()))
+        }
+
+        if self.protocol.is_empty() {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: protocol is empty.".to_string()))
+        }
+
+        let regex_ip = Regex::new(r#"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"#).unwrap();
+        if !regex_ip.is_match(&self.ip) {
+            return Err((StatusCode::BAD_REQUEST, "input validation error: ip_address is not formatted correctly.".to_string()))
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default, Clone, Debug, sqlx::FromRow, Getters)]
 pub struct ProcessedIndividual {
     pub id: String,
     username: String,
