@@ -14,6 +14,7 @@ pub trait Brute {}
 ////////////////////
 // REQUEST TYPES //
 //////////////////
+
 pub struct RequestWithLimit<T> {
     pub table: T, // just call ::default()
     pub limit: usize,
@@ -72,6 +73,7 @@ impl Actor for BruteSystem {
 /////////////////////////
 // INDIVIDUAL MESSAGE //
 ///////////////////////
+
 impl Handler<Individual> for BruteSystem {
     type Result = ();
 
@@ -108,6 +110,7 @@ impl Handler<Individual> for BruteSystem {
 //////////////////////////////////
 // PROCESSEDINDIVIDUAL MESSAGE //
 ////////////////////////////////
+
 impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
     type Result = ResponseFuture<Result<Vec<ProcessedIndividual>, StatusCode>>;
 
