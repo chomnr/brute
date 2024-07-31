@@ -50,6 +50,6 @@ ENV RUNNING_IN_DOCKER=true
 
 EXPOSE 3000
 
-# Define the command to run your application in development mode
+# todo run the actual binary...
 CMD ["cargo", "run", "--release"]
 
