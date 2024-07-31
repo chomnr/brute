@@ -16,7 +16,7 @@ pub trait Brute {}
 pub struct RequestWithLimit<T> {
     pub table: T, // just call ::default()
     pub limit: usize,
-    pub max_limit: usize
+    pub max_limit: usize,
 }
 
 //////////////////////
@@ -110,8 +110,11 @@ impl Handler<Individual> for BruteSystem {
 /////////////////////////////////
 impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
     type Result = Vec<ProcessedIndividual>;
-    fn handle(&mut self, msg: RequestWithLimit<ProcessedIndividual>, ctx: &mut Self::Context) -> Self::Result {
-        
+    fn handle(
+        &mut self,
+        msg: RequestWithLimit<ProcessedIndividual>,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
         let fut = Box::pin(async move {
             // just retrieve..
             // hit the querry
@@ -149,7 +152,7 @@ pub mod reporter {
     // so only the pool is getting cloned and not the entire struct.
     #[allow(async_fn_in_trait)]
     pub trait Reportable<T: Reporter, R> {
-        async fn report(reporter: T, model: R) -> anyhow::Result<Self>
+        async fn report<'a>(reporter: &T, model: &'a R) -> anyhow::Result<Self>
         where
             Self: Sized;
     }
@@ -172,32 +175,32 @@ pub mod reporter {
             let start = Instant::now();
 
             // Report individual
-            let individual = Individual::report(self.clone(), payload).await?;
+            let individual = Individual::report(&self, &payload).await?;
 
             // Report processed individual
             let processed_individual =
-                ProcessedIndividual::report(self.clone(), individual.clone()).await?;
+                ProcessedIndividual::report(&self, &individual).await?;
 
             // Report top statistics
-            TopUsername::report(self.clone(), individual.clone()).await?;
-            TopPassword::report(self.clone(), individual.clone()).await?;
-            TopIp::report(self.clone(), individual.clone()).await?;
-            TopProtocol::report(self.clone(), individual.clone()).await?;
+            TopUsername::report(&self, &individual).await?;
+            TopPassword::report(&self, &individual).await?;
+            TopIp::report(&self, &individual).await?;
+            TopProtocol::report(&self, &individual).await?;
 
             // Report location details
-            TopCity::report(self.clone(), processed_individual.clone()).await?;
-            TopRegion::report(self.clone(), processed_individual.clone()).await?;
-            TopCountry::report(self.clone(), processed_individual.clone()).await?;
-            TopTimezone::report(self.clone(), processed_individual.clone()).await?;
-            TopOrg::report(self.clone(), processed_individual.clone()).await?;
-            TopPostal::report(self.clone(), processed_individual.clone()).await?;
+            TopCity::report(&self, &processed_individual).await?;
+            TopRegion::report(&self, &processed_individual).await?;
+            TopCountry::report(&self, &processed_individual).await?;
+            TopTimezone::report(&self, &processed_individual).await?;
+            TopOrg::report(&self, &processed_individual).await?;
+            TopPostal::report(&self, &processed_individual).await?;
 
             // Report combination and time-based statistics
-            TopUsrPassCombo::report(self.clone(), individual.clone()).await?;
-            TopHourly::report(self.clone(), 0).await?;
-            TopDaily::report(self.clone(), 0).await?;
-            TopWeekly::report(self.clone(), 0).await?;
-            TopYearly::report(self.clone(), 0).await?;
+            TopUsrPassCombo::report(&self, &individual).await?;
+            TopHourly::report(&self, &0).await?;
+            TopDaily::report(&self, &0).await?;
+            TopWeekly::report(&self, &0).await?;
+            TopYearly::report(&self, &0).await?;
 
             let elasped_time = start.elapsed();
             info!(
@@ -216,38 +219,44 @@ pub mod reporter {
 
     // individual
     impl Reportable<BruteReporter<BruteSystem>, Individual> for Individual {
-        async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: Self,
+        async fn report<'a>(
+            reporter: &BruteReporter<BruteSystem>,
+            model: &'a Individual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let query = r#"
                 INSERT INTO individual (id, username, password, ip, protocol, timestamp)
                 VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
             "#;
-            model.id = Uuid::new_v4().as_simple().to_string();
-            model.timestamp = SystemTime::now()
+
+            // Generate new ID and timestamp for the new instance
+            let new_id = Uuid::new_v4().as_simple().to_string();
+            let new_timestamp = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis() as i64;
-            sqlx::query(query)
-                .bind(&model.id())
+
+            // Execute the query and get the inserted data
+            let inserted = sqlx::query_as::<_, Individual>(query)
+                .bind(&new_id)
                 .bind(&model.username())
                 .bind(&model.password())
                 .bind(&model.ip())
                 .bind(&model.protocol())
-                .bind(model.timestamp())
-                .execute(pool)
+                .bind(new_timestamp)
+                .fetch_one(pool)
                 .await?;
-            Ok(model)
+
+            Ok(inserted)
         }
     }
 
     // processed individual
     impl Reportable<BruteReporter<BruteSystem>, Individual> for ProcessedIndividual {
-        async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            model: Individual,
+        async fn report<'a>(
+            reporter: &BruteReporter<BruteSystem>,
+            model: &'a Individual,
         ) -> anyhow::Result<ProcessedIndividual> {
             let pool = &reporter.brute.db_pool;
             let ipinfo = &reporter.brute.ipinfo_client;
@@ -258,7 +267,7 @@ pub mod reporter {
             WHERE ip = $1
             ORDER BY timestamp DESC
             LIMIT 1;
-        ";
+            ";
 
             let insert_query = "
             INSERT INTO processed_individual (
@@ -276,7 +285,7 @@ pub mod reporter {
                 $27, $28, $29, $30, $31, $32,
                 $33, $34, $35, $36, $37
             ) RETURNING *;
-        ";
+            ";
 
             // Default values for IP details
             let asn_default = AsnDetails {
@@ -378,7 +387,7 @@ pub mod reporter {
                     let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
                     let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
 
-                    // Insert or update the record
+                    // Insert the new details
                     sqlx::query_as::<_, ProcessedIndividual>(insert_query)
                         .bind(&model.id())
                         .bind(&model.username())
@@ -429,14 +438,18 @@ pub mod reporter {
     // top username
     impl Reportable<BruteReporter<BruteSystem>, Individual> for TopUsername {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: Individual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &Individual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_username ( username, amount ) VALUES ($1, 1) ON CONFLICT (username) DO UPDATE SET
-                amount = top_username.amount + EXCLUDED.amount RETURNING username, amount;"#;
+                INSERT INTO top_username ( username, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (username)
+                DO UPDATE SET amount = top_username.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopUsername>(query)
                 .bind(model.username())
                 .fetch_one(pool)
@@ -448,14 +461,18 @@ pub mod reporter {
     // top password
     impl Reportable<BruteReporter<BruteSystem>, Individual> for TopPassword {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: Individual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &Individual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_password ( password, amount ) VALUES ($1, 1) ON CONFLICT (password) DO UPDATE SET
-                amount = top_password.amount + EXCLUDED.amount RETURNING password, amount;"#;
+                INSERT INTO top_password ( password, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (password)
+                DO UPDATE SET amount = top_password.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopPassword>(query)
                 .bind(model.password())
                 .fetch_one(pool)
@@ -467,14 +484,18 @@ pub mod reporter {
     // top ip
     impl Reportable<BruteReporter<BruteSystem>, Individual> for TopIp {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: Individual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &Individual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_ip ( ip, amount ) VALUES ($1, 1) ON CONFLICT (ip) DO UPDATE SET
-                amount = top_ip.amount + EXCLUDED.amount RETURNING ip, amount;"#;
+                INSERT INTO top_ip ( ip, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (ip)
+                DO UPDATE SET amount = top_ip.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopIp>(query)
                 .bind(model.ip())
                 .fetch_one(pool)
@@ -486,14 +507,18 @@ pub mod reporter {
     // top protocol
     impl Reportable<BruteReporter<BruteSystem>, Individual> for TopProtocol {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: Individual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &Individual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_protocol ( protocol, amount ) VALUES ($1, 1) ON CONFLICT (protocol) DO UPDATE SET
-                amount = top_protocol.amount + EXCLUDED.amount RETURNING protocol, amount;"#;
+                INSERT INTO top_protocol ( protocol, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (protocol)
+                DO UPDATE SET amount = top_protocol.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopProtocol>(query)
                 .bind(model.protocol())
                 .fetch_one(pool)
@@ -505,14 +530,18 @@ pub mod reporter {
     // top city
     impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopCity {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: ProcessedIndividual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_city ( city, amount ) VALUES ($1, 1) ON CONFLICT (city) DO UPDATE SET
-                amount = top_city.amount + EXCLUDED.amount RETURNING city, amount;"#;
+                INSERT INTO top_city ( city, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (city)
+                DO UPDATE SET amount = top_city.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopCity>(query)
                 .bind(model.city())
                 .fetch_one(pool)
@@ -524,14 +553,18 @@ pub mod reporter {
     // top region
     impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopRegion {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: ProcessedIndividual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_region ( region, amount ) VALUES ($1, 1) ON CONFLICT (region) DO UPDATE SET
-                amount = top_region.amount + EXCLUDED.amount RETURNING region, amount;"#;
+                INSERT INTO top_region ( region, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (region)
+                DO UPDATE SET amount = top_region.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopRegion>(query)
                 .bind(model.region())
                 .fetch_one(pool)
@@ -543,14 +576,18 @@ pub mod reporter {
     // top timezone
     impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopTimezone {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: ProcessedIndividual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_timezone ( timezone, amount ) VALUES ($1, 1) ON CONFLICT (timezone) DO UPDATE SET
-                amount = top_timezone.amount + EXCLUDED.amount RETURNING timezone, amount;"#;
+                INSERT INTO top_timezone ( timezone, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (timezone)
+                DO UPDATE SET amount = top_timezone.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopTimezone>(query)
                 .bind(model.timezone())
                 .fetch_one(pool)
@@ -562,14 +599,18 @@ pub mod reporter {
     // top country
     impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopCountry {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: ProcessedIndividual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_country ( country, amount ) VALUES ($1, 1) ON CONFLICT (country) DO UPDATE SET
-                amount = top_country.amount + EXCLUDED.amount RETURNING country, amount;"#;
+                INSERT INTO top_country ( country, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (country)
+                DO UPDATE SET amount = top_country.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopCountry>(query)
                 .bind(model.country())
                 .fetch_one(pool)
@@ -581,14 +622,18 @@ pub mod reporter {
     // top org
     impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopOrg {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: ProcessedIndividual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_org ( org, amount ) VALUES ($1, 1) ON CONFLICT (org) DO UPDATE SET
-                amount = top_org.amount + EXCLUDED.amount RETURNING org, amount;"#;
+                INSERT INTO top_org ( org, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (org)
+                DO UPDATE SET amount = top_org.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopOrg>(query)
                 .bind(model.org())
                 .fetch_one(pool)
@@ -600,14 +645,18 @@ pub mod reporter {
     // top postal
     impl Reportable<BruteReporter<BruteSystem>, ProcessedIndividual> for TopPostal {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: ProcessedIndividual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_postal ( postal, amount ) VALUES ($1, 1) ON CONFLICT (postal) DO UPDATE SET
-                amount = top_postal.amount + EXCLUDED.amount RETURNING postal, amount;"#;
+                INSERT INTO top_postal ( postal, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (postal)
+                DO UPDATE SET amount = top_postal.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopPostal>(query)
                 .bind(model.postal())
                 .fetch_one(pool)
@@ -618,8 +667,8 @@ pub mod reporter {
 
     impl Reportable<BruteReporter<BruteSystem>, Individual> for TopUsrPassCombo {
         async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            mut model: Individual,
+            reporter: &BruteReporter<BruteSystem>,
+            model: &Individual,
         ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             // query
@@ -628,10 +677,11 @@ pub mod reporter {
                     id, username, password, amount
                 ) VALUES (
                     $1, $2, $3, 1
-                ) ON CONFLICT (username, password) DO UPDATE SET
-                    amount = top_usr_pass_combo.amount + EXCLUDED.amount
-                    RETURNING id, username, password, amount;
-                "#;
+                )
+                ON CONFLICT (username, password)
+                DO UPDATE SET amount = top_usr_pass_combo.amount + EXCLUDED.amount
+                RETURNING *;
+            "#;
             let result = sqlx::query_as::<_, TopUsrPassCombo>(query)
                 .bind(Uuid::new_v4().as_simple().to_string())
                 .bind(model.username())
@@ -643,210 +693,284 @@ pub mod reporter {
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopHourly {
-        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
+        async fn report(reporter: &BruteReporter<BruteSystem>, _: &i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|e| anyhow::anyhow!("Failed to get system time: {}", e))?
+                .as_millis() as i64;
+
             let select_query = r#"
                 SELECT *
                 FROM top_hourly
                 ORDER BY timestamp DESC
                 LIMIT 1;
             "#;
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as i64;
 
             let top_hourly = sqlx::query_as::<_, TopHourly>(select_query)
                 .fetch_optional(pool)
-                .await
-                .unwrap();
+                .await?;
 
-            if top_hourly.is_some() {
-                if now - top_hourly.clone().unwrap().timestamp() > 3_600_000 {
-                    // exceeds an hour so insert...
-                    let insert_query = r#"INSERT INTO top_hourly (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                    sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                    return Ok(TopHourly {
+            match top_hourly {
+                Some(record) if now - record.timestamp > 3_600_000 => {
+                    // Insert new record if it exceeds an hour
+                    let insert_query = r#"
+                        INSERT INTO top_hourly (timestamp, amount)
+                        VALUES ($1, 1);
+                    "#;
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
+                    Ok(TopHourly {
                         timestamp: now,
                         amount: 1,
-                    });
-                } else {
-                    let mut hourly = top_hourly.clone().unwrap();
-                    hourly.amount = 1;
-                    let update_query = r#" UPDATE top_hourly SET amount = amount + 1 
-                    WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query)
-                        .bind(hourly.timestamp)
+                    })
+                }
+                Some(mut record) => {
+                    // Update existing record within the hour
+                    record.amount += 1;
+                    let update_query = r#"
+                        UPDATE top_hourly
+                        SET amount = $1
+                        WHERE timestamp = $2;
+                    "#;
+                    sqlx::query(update_query)
+                        .bind(record.amount)
+                        .bind(record.timestamp)
                         .execute(pool)
                         .await?;
-                    return Ok(hourly);
+
+                    Ok(record)
                 }
-            } else {
-                let insert_query = r#"INSERT INTO top_hourly (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                return Ok(TopHourly {
-                    timestamp: now,
-                    amount: 1,
-                });
+                None => {
+                    // Insert a new record if none exists
+                    let insert_query = r#"
+                        INSERT INTO top_hourly (timestamp, amount)
+                        VALUES ($1, 1);
+                    "#;
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
+                    Ok(TopHourly {
+                        timestamp: now,
+                        amount: 1,
+                    })
+                }
             }
         }
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopDaily {
-        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
+        async fn report(reporter: &BruteReporter<BruteSystem>, _: &i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
-            let select_query = r#"
-                SELECT *
-                FROM top_daily
-                ORDER BY timestamp DESC
-                LIMIT 1;
-            "#;
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .map_err(|e| anyhow::anyhow!("Failed to get system time: {}", e))?
                 .as_millis() as i64;
+
+            let select_query = r#"
+            SELECT *
+            FROM top_daily
+            ORDER BY timestamp DESC
+            LIMIT 1;
+        "#;
 
             let top_daily = sqlx::query_as::<_, TopDaily>(select_query)
                 .fetch_optional(pool)
-                .await
-                .unwrap();
+                .await?;
 
-            if top_daily.is_some() {
-                if now - top_daily.clone().unwrap().timestamp() > 86_400_000 {
-                    // exceeds an hour so insert...
-                    let insert_query = r#"INSERT INTO top_daily (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                    sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                    return Ok(TopDaily {
+            match top_daily {
+                Some(record) if now - record.timestamp > 86_400_000 => {
+                    // Insert new record if it exceeds a day
+                    let insert_query = r#"
+                    INSERT INTO top_daily (timestamp, amount)
+                    VALUES ($1, 1);
+                "#;
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
+                    Ok(TopDaily {
                         timestamp: now,
                         amount: 1,
-                    });
-                } else {
-                    let mut daily = top_daily.clone().unwrap();
-                    daily.amount = 1;
-                    let update_query = r#" UPDATE top_daily SET amount = amount + 1 
-                    WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query)
-                        .bind(daily.timestamp)
+                    })
+                }
+                Some(mut record) => {
+                    // Update existing record within the day
+                    record.amount += 1;
+                    let update_query = r#"
+                    UPDATE top_daily
+                    SET amount = $1
+                    WHERE timestamp = $2;
+                "#;
+                    sqlx::query(update_query)
+                        .bind(record.amount)
+                        .bind(record.timestamp)
                         .execute(pool)
                         .await?;
-                    return Ok(daily);
+
+                    Ok(record)
                 }
-            } else {
-                let insert_query = r#"INSERT INTO top_daily (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                return Ok(TopDaily {
-                    timestamp: now,
-                    amount: 1,
-                });
+                None => {
+                    // Insert a new record if none exists
+                    let insert_query = r#"
+                    INSERT INTO top_daily (timestamp, amount)
+                    VALUES ($1, 1);
+                "#;
+                    sqlx::query(insert_query).bind(now).execute(pool).await?;
+
+                    Ok(TopDaily {
+                        timestamp: now,
+                        amount: 1,
+                    })
+                }
             }
         }
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopWeekly {
-        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
+        async fn report(
+            reporter: &BruteReporter<BruteSystem>,
+            _: &i64,
+        ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|e| anyhow::anyhow!("Failed to get system time: {}", e))?
+                .as_millis() as i64;
+    
             let select_query = r#"
                 SELECT *
                 FROM top_weekly
                 ORDER BY timestamp DESC
                 LIMIT 1;
             "#;
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as i64;
-
+    
             let top_weekly = sqlx::query_as::<_, TopWeekly>(select_query)
                 .fetch_optional(pool)
-                .await
-                .unwrap();
-
-            if top_weekly.is_some() {
-                if now - top_weekly.clone().unwrap().timestamp() > 604_800_000 {
-                    // exceeds an hour so insert...
-                    let insert_query = r#"INSERT INTO top_weekly (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                    sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                    return Ok(TopWeekly {
-                        timestamp: now,
-                        amount: 1,
-                    });
-                } else {
-                    let mut weekly = top_weekly.clone().unwrap();
-                    weekly.amount = 1;
-                    let update_query = r#" UPDATE top_weekly SET amount = amount + 1 
-                    WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query)
-                        .bind(weekly.timestamp)
+                .await?;
+    
+            match top_weekly {
+                Some(record) if now - record.timestamp > 604_800_000 => {
+                    // Insert new record if it exceeds a week
+                    let insert_query = r#"
+                        INSERT INTO top_weekly (timestamp, amount)
+                        VALUES ($1, 1);
+                    "#;
+                    sqlx::query(insert_query)
+                        .bind(now)
                         .execute(pool)
                         .await?;
-                    return Ok(weekly);
+                    
+                    Ok(TopWeekly {
+                        timestamp: now,
+                        amount: 1,
+                    })
                 }
-            } else {
-                let insert_query = r#"INSERT INTO top_weekly (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                return Ok(TopWeekly {
-                    timestamp: now,
-                    amount: 1,
-                });
+                Some(mut record) => {
+                    // Update existing record within the week
+                    record.amount += 1;
+                    let update_query = r#"
+                        UPDATE top_weekly
+                        SET amount = $1
+                        WHERE timestamp = $2;
+                    "#;
+                    sqlx::query(update_query)
+                        .bind(record.amount)
+                        .bind(record.timestamp)
+                        .execute(pool)
+                        .await?;
+                    
+                    Ok(record)
+                }
+                None => {
+                    // Insert a new record if none exists
+                    let insert_query = r#"
+                        INSERT INTO top_weekly (timestamp, amount)
+                        VALUES ($1, 1);
+                    "#;
+                    sqlx::query(insert_query)
+                        .bind(now)
+                        .execute(pool)
+                        .await?;
+                    
+                    Ok(TopWeekly {
+                        timestamp: now,
+                        amount: 1,
+                    })
+                }
             }
         }
-    }
+    }    
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopYearly {
-        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
+        async fn report(
+            reporter: &BruteReporter<BruteSystem>,
+            _: &i64,
+        ) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|e| anyhow::anyhow!("Failed to get system time: {}", e))?
+                .as_millis() as i64;
+    
             let select_query = r#"
                 SELECT *
                 FROM top_yearly
                 ORDER BY timestamp DESC
                 LIMIT 1;
             "#;
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as i64;
-
+    
             let top_yearly = sqlx::query_as::<_, TopYearly>(select_query)
                 .fetch_optional(pool)
-                .await
-                .unwrap();
-
-            if top_yearly.is_some() {
-                if now - top_yearly.clone().unwrap().timestamp() > 31_556_800_000 {
-                    // exceeds an hour so insert...
-                    let insert_query = r#"INSERT INTO top_yearly (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                    sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                    return Ok(TopYearly {
-                        timestamp: now,
-                        amount: 1,
-                    });
-                } else {
-                    let mut yearly = top_yearly.clone().unwrap();
-                    yearly.amount = 1;
-                    let update_query = r#" UPDATE top_yearly SET amount = amount + 1 
-                    WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query)
-                        .bind(yearly.timestamp)
+                .await?;
+    
+            match top_yearly {
+                Some(record) if now - record.timestamp > 31_556_800_000 => {
+                    // Insert new record if it exceeds a year
+                    let insert_query = r#"
+                        INSERT INTO top_yearly (timestamp, amount)
+                        VALUES ($1, 1);
+                    "#;
+                    sqlx::query(insert_query)
+                        .bind(now)
                         .execute(pool)
                         .await?;
-                    return Ok(yearly);
+                    
+                    Ok(TopYearly {
+                        timestamp: now,
+                        amount: 1,
+                    })
                 }
-            } else {
-                let insert_query = r#"INSERT INTO top_yearly (timestamp, amount)
-                    VALUES ($1, 1);"#;
-                sqlx::query(&insert_query).bind(now).execute(pool).await?;
-                return Ok(TopYearly {
-                    timestamp: now,
-                    amount: 1,
-                });
+                Some(mut record) => {
+                    // Update existing record within the year
+                    record.amount += 1;
+                    let update_query = r#"
+                        UPDATE top_yearly
+                        SET amount = $1
+                        WHERE timestamp = $2;
+                    "#;
+                    sqlx::query(update_query)
+                        .bind(record.amount)
+                        .bind(record.timestamp)
+                        .execute(pool)
+                        .await?;
+                    
+                    Ok(record)
+                }
+                None => {
+                    // Insert a new record if none exists
+                    let insert_query = r#"
+                        INSERT INTO top_yearly (timestamp, amount)
+                        VALUES ($1, 1);
+                    "#;
+                    sqlx::query(insert_query)
+                        .bind(now)
+                        .execute(pool)
+                        .await?;
+                    
+                    Ok(TopYearly {
+                        timestamp: now,
+                        amount: 1,
+                    })
+                }
             }
         }
-    }
+    }    
 }
