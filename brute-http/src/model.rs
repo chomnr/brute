@@ -5,8 +5,9 @@ use derive_getters::Getters;
 
 use actix::Message;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
-use crate::validator::Validate;
+use crate::{system::RequestWithLimit, validator::Validate};
 
 #[derive(Default, Clone, Debug, sqlx::FromRow,Getters)]
 pub struct Individual {
@@ -73,7 +74,7 @@ impl Validate for Individual {
     }
 }
 
-#[derive(Default, Clone, Debug, sqlx::FromRow, Getters)]
+#[derive(Default, Clone, Debug, sqlx::FromRow, Getters, Serialize, Deserialize)]
 pub struct ProcessedIndividual {
     pub id: String,
     username: String,
@@ -114,8 +115,8 @@ pub struct ProcessedIndividual {
     pub timestamp: i64,
 }
 
-impl Message for ProcessedIndividual {
-    type Result = ();
+impl Message for RequestWithLimit<ProcessedIndividual> {
+    type Result = Vec<ProcessedIndividual>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]

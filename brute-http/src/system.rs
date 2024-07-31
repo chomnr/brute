@@ -6,9 +6,18 @@ use log::{error, info};
 use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
 
-use crate::model::Individual;
+use crate::model::{Individual, ProcessedIndividual};
 
 pub trait Brute {}
+
+////////////////////
+// REQUEST TYPES //
+//////////////////
+pub struct RequestWithLimit<T> {
+    pub table: T, // just call ::default()
+    pub limit: usize,
+    pub max_limit: usize
+}
 
 //////////////////////
 // SYSTEM /w ACTOR //
@@ -59,6 +68,9 @@ impl Actor for BruteSystem {
     type Context = Context<Self>;
 }
 
+/////////////////////////
+// INDIVIDUAL MESSAGE //
+///////////////////////
 impl Handler<Individual> for BruteSystem {
     type Result = ();
 
@@ -90,6 +102,24 @@ impl Handler<Individual> for BruteSystem {
 
         // Spawn the future as an actor message.
         ctx.spawn(fut.into_actor(self));
+    }
+}
+
+///////////////////////////////////
+// PROCESSED INDIVIDUAL MESSAGE //
+/////////////////////////////////
+impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
+    type Result = Vec<ProcessedIndividual>;
+    fn handle(&mut self, msg: RequestWithLimit<ProcessedIndividual>, ctx: &mut Self::Context) -> Self::Result {
+        
+        let fut = Box::pin(async move {
+            // just retrieve..
+            // hit the querry
+        });
+
+        // Spawn the future as an actor message.
+        ctx.spawn(fut.into_actor(self));
+        todo!()
     }
 }
 
