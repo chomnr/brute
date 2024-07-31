@@ -25,21 +25,24 @@ struct LimitParameter {
 
 // todo add websockets... maybe...
 
-///////////
-/// GET //
-////////////////////////////////////////////
-/// brute/stats/attacker?limit={amount} ///
-//////////////////////////////////////////
+////////////
+/// GET ///
+///////////////////////////////////////////
+/// brute/stats/attacks?limit={amount} ///
+/////////////////////////////////////////
 async fn get_attacker(
     Extension(actor): Extension<Addr<BruteSystem>>,
     Query(params): Query<LimitParameter>,
 ) -> Result<Json<Vec<ProcessedIndividual>>, StatusCode> {
     let limit = params.limit.unwrap_or(50);
-    let request = RequestWithLimit {
+    let mut request = RequestWithLimit {
         table: ProcessedIndividual::default(),
         limit,
         max_limit: 50,
     };
+    if limit > request.max_limit {
+        request.limit = request.max_limit;
+    }
     match actor.send(request).await {
         Ok(result) => Ok(axum::Json(result)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),

@@ -13,8 +13,8 @@ pub fn post_router() -> Router {
         .layer(ValidateRequestHeaderLayer::bearer(&bearer_token))
 }
 
-////////////
-/// POST //
+/////////////
+/// POST ///
 /////////////////////////
 /// brute/attack/add ///
 ///////////////////////
