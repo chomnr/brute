@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         .filter_module("async_std", log::LevelFilter::Off)
         .filter_module("polling", log::LevelFilter::Off)
         .filter_module("tracing", log::LevelFilter::Off)
-        //.filter_module("sqlx", log::LevelFilter::Off)
+        .filter_module("sqlx", log::LevelFilter::Off)
         .filter_module("tower_http", log::LevelFilter::Off)
         .filter_module("tower::buffer::worker", log::LevelFilter::Off)
         .filter_module("tower::buffer::service", log::LevelFilter::Off)
