@@ -38,4 +38,5 @@ ENV RUNNING_IN_DOCKER=true
 
 EXPOSE 3000
 
+# dont use command make it run via executable.
 CMD ["cargo", "run", "--release"]
