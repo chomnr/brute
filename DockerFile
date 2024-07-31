@@ -38,6 +38,4 @@ ENV RUNNING_IN_DOCKER=true
 
 EXPOSE 3000
 
-# todo run the actual binary...
 CMD ["cargo", "run", "--release"]
-
