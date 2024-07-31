@@ -61,7 +61,6 @@ pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig) -> 
         .layer(TraceLayer::new_for_http());
 
     // http server
-    info!("Server is now listening on {}.", listen_on);
 
     let mut parts = listen_on.split(':');
     let ip_part = parts
@@ -75,7 +74,7 @@ pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig) -> 
     let port: u16 = port_part.parse()?;
 
     let socket_addr = SocketAddr::new(ip, port);
-
+    info!("(TLS) Server is now listening on {}.", listen_on);
     axum_server::bind_rustls(socket_addr, config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
