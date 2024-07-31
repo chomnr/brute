@@ -130,26 +130,26 @@ pub struct TopUsrPassCombo {
     amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Debug, Clone, sqlx::FromRow, Getters)]
 pub struct TopHourly {
-    timestamp: i64,
-    amount: i32,
+    pub timestamp: i64,
+    pub amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Debug, Clone, sqlx::FromRow, Getters)]
 pub struct TopDaily {
-    timestamp: i64,
-    amount: i32,
+    pub timestamp: i64,
+    pub amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Debug, Clone, sqlx::FromRow, Getters)]
 pub struct TopWeekly {
-    timestamp: i64,
-    amount: i32,
+    pub timestamp: i64,
+    pub amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Debug, Clone, sqlx::FromRow, Getters)]
 pub struct TopYearly {
-    timestamp: i64,
-    amount: i32,
+    pub timestamp: i64,
+    pub amount: i32,
 }
