@@ -7,7 +7,7 @@ use axum::{
 };
 use serde::Deserialize;
 use tower::{
-    buffer::BufferLayer, layer, limit::RateLimitLayer, BoxError, ServiceBuilder
+    buffer::BufferLayer, limit::RateLimitLayer, BoxError, ServiceBuilder
 };
 use tower_http::compression::CompressionLayer;
 
@@ -19,7 +19,6 @@ use crate::{
 pub fn get_router() -> Router {
     let rate_limit: u64 = var("RATE_LIMIT").unwrap().parse().unwrap();
     let rate_limit_duration: u64 = var("RATE_LIMIT_DURATION").unwrap().parse().unwrap();
-
     Router::new().route("/attacks", get(get_attacker)).layer(
         ServiceBuilder::new()
             // https://github.com/tokio-rs/axum/discussions/987

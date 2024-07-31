@@ -4,7 +4,6 @@ mod post;
 use std::net::SocketAddr;
 
 use actix::Addr;
-use anyhow::Context;
 use axum::{Extension, Router};
 use dotenvy::var;
 use get::get_router;

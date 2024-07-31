@@ -55,7 +55,7 @@ fn main() -> Result<()> {
             token: Some(config.ipinfo_token.to_string()),
             ..Default::default()
         };
-        let mut ipinfo_client = IpInfo::new(ipinfo_config).unwrap();
+        let ipinfo_client = IpInfo::new(ipinfo_config).unwrap();
 
         // setup actor
         let brute_system = BruteSystem::new_brute(db, ipinfo_client).await;
