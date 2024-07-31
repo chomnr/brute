@@ -1,3 +1,4 @@
+mod get;
 mod post;
 
 use std::net::SocketAddr;
@@ -6,13 +7,13 @@ use actix::Addr;
 use anyhow::Context;
 use axum::{Extension, Router};
 use dotenvy::var;
+use get::get_router;
 use log::info;
 use post::post_router;
 use tokio::net::TcpListener;
 use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
 
 use crate::system::BruteSystem;
-
 
 pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
     // environment variables
@@ -35,11 +36,12 @@ pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
         tcp_listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .await.unwrap();
+    .await
+    .unwrap();
     Ok(())
 }
 
 fn api_router() -> Router {
-    let router = Router::new().merge(post_router());
+    let router = Router::new().merge(post_router()).merge(get_router());
     router
 }
