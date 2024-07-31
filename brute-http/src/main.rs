@@ -1,7 +1,8 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use actix::{System, Actor};
 use anyhow::Result;
-use brute_http::{config::Config, http::serve, system::BruteSystem};
+use axum_server::tls_rustls::RustlsConfig;
+use brute_http::{config::Config, http::{serve, serve_tls}, system::BruteSystem};
 use clap::Parser;
 use dotenvy::var;
 use ipinfo::{IpInfo, IpInfoConfig};
@@ -71,8 +72,21 @@ fn main() -> Result<()> {
         let brute_system = BruteSystem::new_brute(db, ipinfo_client).await;
         let brute_actor = brute_system.start(); // call .start() on brute_system
 
+        // tls support
+        let config = RustlsConfig::from_pem_file(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("certs")
+                .join("cert.pem"),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("certs")
+                .join("key.pem"),
+        )
+        .await
+        .unwrap();
+
         // Start listening.
-        serve(brute_actor).await.unwrap();
+         //serve(brute_actor).await.unwrap(); // non tls
+        serve_tls(brute_actor, config).await.unwrap(); // tls
     });
     Ok(())
 }
