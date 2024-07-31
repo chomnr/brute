@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix::{Actor, AsyncContext, Context, Handler, WrapFuture};
 use ipinfo::IpInfo;
-use log::info;
+use log::{error, info};
 use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
 
@@ -66,8 +66,26 @@ impl Handler<Individual> for BruteSystem {
         let reporter = self.reporter();
 
         let fut = Box::pin(async move {
-            reporter.start_report(msg).await;
-            info!("Received a new attacker")
+            match reporter.start_report(msg).await {
+                Ok(result) => {
+                    // If the operation is successful, simply continue with execution.
+                    info!("Successfully processed Individual with ID: {}. Details: Username: '{}', IP: '{}', Protocol: '{}', Timestamp: {}, Location: {} - {}, {}, {}",
+                        result.id(),
+                        result.username(),
+                        result.ip(),
+                        result.protocol(),
+                        result.timestamp(),
+                        result.city().as_ref().unwrap(),
+                        result.region().as_ref().unwrap(),
+                        result.country().as_ref().unwrap(),
+                        result.postal().as_ref().unwrap()
+                    );
+                }
+                Err(e) => {
+                    // Print an error message without panicking.
+                    error!("Failed to process report: {}", e);
+                }
+            }
         });
 
         // Spawn the future as an actor message.
@@ -82,7 +100,9 @@ impl Handler<Individual> for BruteSystem {
 pub mod reporter {
     use super::{Brute, BruteSystem};
     use crate::model::{
-        Individual, ProcessedIndividual, TopCity, TopCountry, TopDaily, TopHourly, TopIp, TopOrg, TopPassword, TopPostal, TopProtocol, TopRegion, TopTimezone, TopUsername, TopUsrPassCombo, TopWeekly, TopYearly
+        Individual, ProcessedIndividual, TopCity, TopCountry, TopDaily, TopHourly, TopIp, TopOrg,
+        TopPassword, TopPostal, TopProtocol, TopRegion, TopTimezone, TopUsername, TopUsrPassCombo,
+        TopWeekly, TopYearly,
     };
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use std::{
@@ -113,58 +133,39 @@ pub mod reporter {
         }
 
         // could be refractored heavily find a way to not clone the entire struct.
-        pub async fn start_report(&self, payload: Individual) {
-            let individual = Individual::report(self.clone(), payload).await.unwrap();
-            // incredibly inefficient.
+        pub async fn start_report(
+            &self,
+            payload: Individual,
+        ) -> anyhow::Result<ProcessedIndividual> {
+            // Report individual
+            let individual = Individual::report(self.clone(), payload).await?;
+
+            // Report processed individual
             let processed_individual =
-                ProcessedIndividual::report(self.clone(), individual.clone())
-                    .await
-                    .unwrap();
-            TopUsername::report(self.clone(), individual.clone())
-                .await
-                .unwrap();
-            TopPassword::report(self.clone(), individual.clone())
-                .await
-                .unwrap();
-            TopIp::report(self.clone(), individual.clone())
-                .await
-                .unwrap();
-            TopProtocol::report(self.clone(), individual.clone())
-                .await
-                .unwrap();
-            TopCity::report(self.clone(), processed_individual.clone())
-                .await
-                .unwrap();
-            TopRegion::report(self.clone(), processed_individual.clone())
-                .await
-                .unwrap();
-            TopCountry::report(self.clone(), processed_individual.clone())
-                .await
-                .unwrap();
-            TopTimezone::report(self.clone(), processed_individual.clone())
-                .await
-                .unwrap();
-            TopOrg::report(self.clone(), processed_individual.clone())
-                .await
-                .unwrap();
-            TopPostal::report(self.clone(), processed_individual.clone())
-                .await
-                .unwrap();
-            TopUsrPassCombo::report(self.clone(), individual.clone())
-                .await
-                .unwrap();
-            TopHourly::report(self.clone(), 0)
-                .await
-                .unwrap();
-            TopDaily::report(self.clone(), 0)
-                .await
-                .unwrap();
-            TopWeekly::report(self.clone(), 0)
-                .await
-                .unwrap();
-            TopYearly::report(self.clone(), 0)
-                .await
-                .unwrap();
+                ProcessedIndividual::report(self.clone(), individual.clone()).await?;
+
+            // Report top statistics
+            TopUsername::report(self.clone(), individual.clone()).await?;
+            TopPassword::report(self.clone(), individual.clone()).await?;
+            TopIp::report(self.clone(), individual.clone()).await?;
+            TopProtocol::report(self.clone(), individual.clone()).await?;
+
+            // Report location details
+            TopCity::report(self.clone(), processed_individual.clone()).await?;
+            TopRegion::report(self.clone(), processed_individual.clone()).await?;
+            TopCountry::report(self.clone(), processed_individual.clone()).await?;
+            TopTimezone::report(self.clone(), processed_individual.clone()).await?;
+            TopOrg::report(self.clone(), processed_individual.clone()).await?;
+            TopPostal::report(self.clone(), processed_individual.clone()).await?;
+
+            // Report combination and time-based statistics
+            TopUsrPassCombo::report(self.clone(), individual.clone()).await?;
+            TopHourly::report(self.clone(), 0).await?;
+            TopDaily::report(self.clone(), 0).await?;
+            TopWeekly::report(self.clone(), 0).await?;
+            TopYearly::report(self.clone(), 0).await?;
+
+            Ok(processed_individual)
         }
     }
 
@@ -649,10 +650,7 @@ pub mod reporter {
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopHourly {
-        async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            _: i64,
-        ) -> anyhow::Result<Self> {
+        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let select_query = r#"
                 SELECT *
@@ -661,9 +659,9 @@ pub mod reporter {
                 LIMIT 1;
             "#;
             let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as i64;
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as i64;
 
             let top_hourly = sqlx::query_as::<_, TopHourly>(select_query)
                 .fetch_optional(pool)
@@ -671,7 +669,7 @@ pub mod reporter {
                 .unwrap();
 
             if top_hourly.is_some() {
-                if now - top_hourly.clone().unwrap().timestamp() > 3_600_000  {
+                if now - top_hourly.clone().unwrap().timestamp() > 3_600_000 {
                     // exceeds an hour so insert...
                     let insert_query = r#"INSERT INTO top_hourly (timestamp, amount)
                     VALUES ($1, 1);"#;
@@ -679,14 +677,17 @@ pub mod reporter {
                     return Ok(TopHourly {
                         timestamp: now,
                         amount: 1,
-                    })
+                    });
                 } else {
                     let mut hourly = top_hourly.clone().unwrap();
                     hourly.amount = 1;
                     let update_query = r#" UPDATE top_hourly SET amount = amount + 1 
                     WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query).bind(hourly.timestamp).execute(pool).await?;
-                    return Ok(hourly)
+                    sqlx::query(&update_query)
+                        .bind(hourly.timestamp)
+                        .execute(pool)
+                        .await?;
+                    return Ok(hourly);
                 }
             } else {
                 let insert_query = r#"INSERT INTO top_hourly (timestamp, amount)
@@ -695,16 +696,13 @@ pub mod reporter {
                 return Ok(TopHourly {
                     timestamp: now,
                     amount: 1,
-                })
+                });
             }
         }
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopDaily {
-        async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            _: i64,
-        ) -> anyhow::Result<Self> {
+        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let select_query = r#"
                 SELECT *
@@ -713,9 +711,9 @@ pub mod reporter {
                 LIMIT 1;
             "#;
             let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as i64;
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as i64;
 
             let top_daily = sqlx::query_as::<_, TopDaily>(select_query)
                 .fetch_optional(pool)
@@ -723,7 +721,7 @@ pub mod reporter {
                 .unwrap();
 
             if top_daily.is_some() {
-                if now - top_daily.clone().unwrap().timestamp() > 86_400_000  {
+                if now - top_daily.clone().unwrap().timestamp() > 86_400_000 {
                     // exceeds an hour so insert...
                     let insert_query = r#"INSERT INTO top_daily (timestamp, amount)
                     VALUES ($1, 1);"#;
@@ -731,14 +729,17 @@ pub mod reporter {
                     return Ok(TopDaily {
                         timestamp: now,
                         amount: 1,
-                    })
+                    });
                 } else {
                     let mut daily = top_daily.clone().unwrap();
                     daily.amount = 1;
                     let update_query = r#" UPDATE top_daily SET amount = amount + 1 
                     WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query).bind(daily.timestamp).execute(pool).await?;
-                    return Ok(daily)
+                    sqlx::query(&update_query)
+                        .bind(daily.timestamp)
+                        .execute(pool)
+                        .await?;
+                    return Ok(daily);
                 }
             } else {
                 let insert_query = r#"INSERT INTO top_daily (timestamp, amount)
@@ -747,16 +748,13 @@ pub mod reporter {
                 return Ok(TopDaily {
                     timestamp: now,
                     amount: 1,
-                })
+                });
             }
         }
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopWeekly {
-        async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            _: i64,
-        ) -> anyhow::Result<Self> {
+        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let select_query = r#"
                 SELECT *
@@ -765,9 +763,9 @@ pub mod reporter {
                 LIMIT 1;
             "#;
             let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as i64;
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as i64;
 
             let top_weekly = sqlx::query_as::<_, TopWeekly>(select_query)
                 .fetch_optional(pool)
@@ -775,7 +773,7 @@ pub mod reporter {
                 .unwrap();
 
             if top_weekly.is_some() {
-                if now - top_weekly.clone().unwrap().timestamp() > 604_800_000  {
+                if now - top_weekly.clone().unwrap().timestamp() > 604_800_000 {
                     // exceeds an hour so insert...
                     let insert_query = r#"INSERT INTO top_weekly (timestamp, amount)
                     VALUES ($1, 1);"#;
@@ -783,14 +781,17 @@ pub mod reporter {
                     return Ok(TopWeekly {
                         timestamp: now,
                         amount: 1,
-                    })
+                    });
                 } else {
                     let mut weekly = top_weekly.clone().unwrap();
                     weekly.amount = 1;
                     let update_query = r#" UPDATE top_weekly SET amount = amount + 1 
                     WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query).bind(weekly.timestamp).execute(pool).await?;
-                    return Ok(weekly)
+                    sqlx::query(&update_query)
+                        .bind(weekly.timestamp)
+                        .execute(pool)
+                        .await?;
+                    return Ok(weekly);
                 }
             } else {
                 let insert_query = r#"INSERT INTO top_weekly (timestamp, amount)
@@ -799,16 +800,13 @@ pub mod reporter {
                 return Ok(TopWeekly {
                     timestamp: now,
                     amount: 1,
-                })
+                });
             }
         }
     }
 
     impl Reportable<BruteReporter<BruteSystem>, i64> for TopYearly {
-        async fn report(
-            reporter: BruteReporter<BruteSystem>,
-            _: i64,
-        ) -> anyhow::Result<Self> {
+        async fn report(reporter: BruteReporter<BruteSystem>, _: i64) -> anyhow::Result<Self> {
             let pool = &reporter.brute.db_pool;
             let select_query = r#"
                 SELECT *
@@ -817,9 +815,9 @@ pub mod reporter {
                 LIMIT 1;
             "#;
             let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as i64;
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as i64;
 
             let top_yearly = sqlx::query_as::<_, TopYearly>(select_query)
                 .fetch_optional(pool)
@@ -827,7 +825,7 @@ pub mod reporter {
                 .unwrap();
 
             if top_yearly.is_some() {
-                if now - top_yearly.clone().unwrap().timestamp() > 31_556_800_000   {
+                if now - top_yearly.clone().unwrap().timestamp() > 31_556_800_000 {
                     // exceeds an hour so insert...
                     let insert_query = r#"INSERT INTO top_yearly (timestamp, amount)
                     VALUES ($1, 1);"#;
@@ -835,14 +833,17 @@ pub mod reporter {
                     return Ok(TopYearly {
                         timestamp: now,
                         amount: 1,
-                    })
+                    });
                 } else {
                     let mut yearly = top_yearly.clone().unwrap();
                     yearly.amount = 1;
                     let update_query = r#" UPDATE top_yearly SET amount = amount + 1 
                     WHERE timestamp = $1;"#;
-                    sqlx::query(&update_query).bind(yearly.timestamp).execute(pool).await?;
-                    return Ok(yearly)
+                    sqlx::query(&update_query)
+                        .bind(yearly.timestamp)
+                        .execute(pool)
+                        .await?;
+                    return Ok(yearly);
                 }
             } else {
                 let insert_query = r#"INSERT INTO top_yearly (timestamp, amount)
@@ -851,7 +852,7 @@ pub mod reporter {
                 return Ok(TopYearly {
                     timestamp: now,
                     amount: 1,
-                })
+                });
             }
         }
     }
