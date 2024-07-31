@@ -1,29 +1,43 @@
-use actix::Addr;
-use axum::{extract::Query, http::StatusCode, routing::get, Extension, Json, Router};
-use dotenvy::var;
-use serde::Deserialize;
+use std::{env::var, time::Duration};
 
-use crate::{model::ProcessedIndividual, system::{BruteSystem, RequestWithLimit}};
+use actix::Addr;
+use axum::{
+    error_handling::HandleErrorLayer, extract::Query, http::StatusCode, routing::get, Extension,
+    Json, Router,
+};
+use serde::Deserialize;
+use tower::{
+    buffer::BufferLayer, layer, limit::RateLimitLayer, BoxError, ServiceBuilder
+};
+use tower_http::compression::CompressionLayer;
+
+use crate::{
+    model::ProcessedIndividual,
+    system::{BruteSystem, RequestWithLimit},
+};
 
 pub fn get_router() -> Router {
-    Router::new().route("/attacks", get(get_attacker))
+    let rate_limit: u64 = var("RATE_LIMIT").unwrap().parse().unwrap();
+    let rate_limit_duration: u64 = var("RATE_LIMIT_DURATION").unwrap().parse().unwrap();
+
+    Router::new().route("/attacks", get(get_attacker)).layer(
+        ServiceBuilder::new()
+            // https://github.com/tokio-rs/axum/discussions/987
+            .layer(HandleErrorLayer::new(|err: BoxError| async move {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Unhandled error: {}", err),
+                )
+            }))
+            .layer(BufferLayer::new(1024))
+            .layer(RateLimitLayer::new(rate_limit, Duration::from_secs(rate_limit_duration)),
+    )).layer(CompressionLayer::new())
 }
 
 #[derive(Debug, Deserialize)]
 struct LimitParameter {
     limit: Option<usize>,
 }
-
-// /brute/stats/attackers/ grab the first 50 'attackers' 
-
-
-// /brute/stats/top_weekly get attacks done in the last week
-// /brute/stats/top_hourly get attacks done in the last hour.
-// /brute/stats/top_yearly get attacks done in the last yearly.
-// /brute/stats/top_protocol?limit=50 get top protocols get last 50 protocols max should be 50 no limit just retrieve top
-// // convert value to json....
-
-// todo add websockets... maybe...
 
 ////////////
 /// GET ///
@@ -44,7 +58,7 @@ async fn get_attacker(
         request.limit = request.max_limit;
     }
     match actor.send(request).await {
-        Ok(result) => Ok(axum::Json(result)),
+        Ok(result) => Ok(axum::Json(result?)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
