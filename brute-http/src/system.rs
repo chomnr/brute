@@ -105,10 +105,12 @@ pub mod reporter {
         TopWeekly, TopYearly,
     };
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
+    use log::info;
     use std::{
         sync::Arc,
         time::{SystemTime, UNIX_EPOCH},
     };
+    use tokio::time::Instant;
     use uuid::Uuid;
 
     pub trait Reporter {}
@@ -137,6 +139,8 @@ pub mod reporter {
             &self,
             payload: Individual,
         ) -> anyhow::Result<ProcessedIndividual> {
+            let start = Instant::now();
+
             // Report individual
             let individual = Individual::report(self.clone(), payload).await?;
 
@@ -165,6 +169,11 @@ pub mod reporter {
             TopWeekly::report(self.clone(), 0).await?;
             TopYearly::report(self.clone(), 0).await?;
 
+            let elasped_time = start.elapsed();
+            info!(
+                "Successfully processed individual report in {:.2?}.",
+                elasped_time
+            );
             Ok(processed_individual)
         }
     }
@@ -205,42 +214,41 @@ pub mod reporter {
     }
 
     // processed individual
-
     impl Reportable<BruteReporter<BruteSystem>, Individual> for ProcessedIndividual {
         async fn report(
             reporter: BruteReporter<BruteSystem>,
             model: Individual,
         ) -> anyhow::Result<ProcessedIndividual> {
-            // mistakes were made i probably could have just used the
-            // structs that were given to me by ipinfo. it is what is.
-            // you live you learn. chomnr 4:01 am florida 7/30/2024.
             let pool = &reporter.brute.db_pool;
             let ipinfo = &reporter.brute.ipinfo_client;
             let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as i64;
 
-            let select_query = "SELECT *
-                FROM processed_individual
-                WHERE ip = $1
-                ORDER BY timestamp DESC
-                LIMIT 1;";
+            let select_query = "
+            SELECT * FROM processed_individual
+            WHERE ip = $1
+            ORDER BY timestamp DESC
+            LIMIT 1;
+        ";
 
-            let insert_query = r#"
-                INSERT INTO processed_individual (
+            let insert_query = "
+            INSERT INTO processed_individual (
                 id, username, password, ip, protocol, hostname, city, region, country, loc, org, postal,
                 asn, asn_name, asn_domain, asn_route, asn_type,
                 company_name, company_domain, company_type,
                 vpn, proxy, tor, relay, hosting, service,
                 abuse_address, abuse_country, abuse_email, abuse_name, abuse_network, abuse_phone,
                 domain_ip, domain_total, domains, timestamp, timezone
-                ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                    $13, $14, $15, $16, $17,
-                    $18, $19, $20,
-                    $21, $22, $23, $24, $25, $26,
-                    $27, $28, $29, $30, $31, $32,
-                    $33, $34, $35, $36, $37
-                ) RETURNING *;"#;
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                $13, $14, $15, $16, $17,
+                $18, $19, $20,
+                $21, $22, $23, $24, $25, $26,
+                $27, $28, $29, $30, $31, $32,
+                $33, $34, $35, $36, $37
+            ) RETURNING *;
+        ";
 
+            // Default values for IP details
             let asn_default = AsnDetails {
                 asn: String::default(),
                 name: String::default(),
@@ -279,15 +287,20 @@ pub mod reporter {
                 domains: Vec::default(),
             };
 
+            // Perform SQL operations
             let ip_exists = sqlx::query_as::<_, ProcessedIndividual>(select_query)
                 .bind(&model.ip())
                 .fetch_optional(pool)
-                .await
-                .unwrap();
+                .await?;
 
-            let pi = if let Some(result) = ip_exists {
-                if now - result.timestamp > 300_000 {
-                    let mut ipinfo_lock = ipinfo.lock();
+            let mut ipinfo_lock = ipinfo.lock();
+            let ip_details = match ip_exists {
+                Some(result) if now - result.timestamp <= 300_000 => {
+                    info!("Reusing cached results for IP: {}", model.ip());
+                    result
+                }
+                _ => {
+                    info!("Fetching new details from ipinfo for IP: {}", model.ip());
                     let ip_details = ipinfo_lock.lookup(&model.ip()).await?;
 
                     let asn_details = ip_details.asn.as_ref().unwrap_or(&asn_default);
@@ -296,6 +309,7 @@ pub mod reporter {
                     let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
                     let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
 
+                    // Insert or update the record
                     sqlx::query_as::<_, ProcessedIndividual>(insert_query)
                         .bind(&model.id())
                         .bind(&model.username())
@@ -333,103 +347,13 @@ pub mod reporter {
                         .bind(domain_details.total as i64)
                         .bind(&domain_details.domains)
                         .bind(model.timestamp)
-                        .bind(ip_details.timezone)
-                        .fetch_one(pool)
-                        .await?
-                } else {
-                    sqlx::query_as::<_, ProcessedIndividual>(insert_query)
-                        .bind(&model.id())
-                        .bind(&model.username())
-                        .bind(&model.password())
-                        .bind(&model.ip())
-                        .bind(&model.protocol())
-                        .bind(&result.hostname())
-                        .bind(&result.city())
-                        .bind(&result.region())
-                        .bind(&result.country())
-                        .bind(&result.loc())
-                        .bind(&result.org())
-                        .bind(&result.postal())
-                        .bind(&result.asn())
-                        .bind(&result.asn_name())
-                        .bind(&result.asn_domain())
-                        .bind(&result.asn_route())
-                        .bind(&result.asn_type())
-                        .bind(&result.company_name())
-                        .bind(&result.company_domain())
-                        .bind(&result.company_type())
-                        .bind(result.vpn())
-                        .bind(result.proxy())
-                        .bind(result.tor())
-                        .bind(result.relay())
-                        .bind(result.hosting())
-                        .bind(&result.service())
-                        .bind(&result.abuse_address())
-                        .bind(&result.abuse_country())
-                        .bind(&result.abuse_email())
-                        .bind(&result.abuse_name())
-                        .bind(&result.abuse_network())
-                        .bind(&result.abuse_phone())
-                        .bind(&result.domain_ip())
-                        .bind(result.domain_total())
-                        .bind(&result.domains())
-                        .bind(model.timestamp)
-                        .bind(&result.timezone())
+                        .bind(&ip_details.timezone)
                         .fetch_one(pool)
                         .await?
                 }
-            } else {
-                let mut ipinfo_lock = ipinfo.lock();
-                let ip_details = ipinfo_lock.lookup(&model.ip()).await.unwrap();
-
-                let asn_details = ip_details.asn.as_ref().unwrap_or(&asn_default);
-                let company_details = ip_details.company.as_ref().unwrap_or(&company_default);
-                let abuse_details = ip_details.abuse.as_ref().unwrap_or(&abuse_default);
-                let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
-                let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
-
-                sqlx::query_as::<_, ProcessedIndividual>(insert_query)
-                    .bind(&model.id())
-                    .bind(&model.username())
-                    .bind(&model.password())
-                    .bind(&model.ip())
-                    .bind(&model.protocol())
-                    .bind(&ip_details.hostname)
-                    .bind(&ip_details.city)
-                    .bind(&ip_details.region)
-                    .bind(&ip_details.country)
-                    .bind(&ip_details.loc)
-                    .bind(&ip_details.org)
-                    .bind(&ip_details.postal)
-                    .bind(&asn_details.asn)
-                    .bind(&asn_details.name)
-                    .bind(&asn_details.domain)
-                    .bind(&asn_details.route)
-                    .bind(&asn_details.asn_type)
-                    .bind(&company_details.name)
-                    .bind(&company_details.domain)
-                    .bind(&company_details.company_type)
-                    .bind(privacy_details.vpn)
-                    .bind(privacy_details.proxy)
-                    .bind(privacy_details.tor)
-                    .bind(privacy_details.relay)
-                    .bind(privacy_details.hosting)
-                    .bind(&privacy_details.service)
-                    .bind(&abuse_details.address)
-                    .bind(&abuse_details.country)
-                    .bind(&abuse_details.email)
-                    .bind(&abuse_details.name)
-                    .bind(&abuse_details.network)
-                    .bind(&abuse_details.phone)
-                    .bind(&domain_details.ip)
-                    .bind(domain_details.total as i64)
-                    .bind(&domain_details.domains)
-                    .bind(model.timestamp)
-                    .bind(&ip_details.timezone)
-                    .fetch_one(pool)
-                    .await?
             };
-            Ok(pi)
+
+            Ok(ip_details)
         }
     }
 
