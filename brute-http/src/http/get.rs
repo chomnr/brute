@@ -1,5 +1,4 @@
 use std::{env::var, time::Duration};
-
 use actix::Addr;
 use axum::{
     error_handling::HandleErrorLayer, extract::Query, http::StatusCode, routing::get, Extension,
