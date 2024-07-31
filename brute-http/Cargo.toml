@@ -16,7 +16,8 @@ tokio = { version = "1.2.0", default-features = false, features = [
 ] }
 axum = { version = "0.7.5", features = ["json"] }
 actix = "0.13.5"
-tower-http = { version = "0.5.2", features = ["limit", "auth", "trace"] }
+tower = { version = "0.4.13", features = ["limit", "buffer"]}
+tower-http = { version = "0.5.2", features = ["limit", "auth", "trace", "compression-gzip"] }
 sqlx = { version = "0.8.0", features = [ "runtime-tokio", "tls-rustls", "postgres", "derive"] }
 ipinfo = "3.0.0"
 serde = { version = "1.0.130", features = ["derive"] }
