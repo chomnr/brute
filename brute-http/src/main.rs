@@ -56,7 +56,7 @@ fn main() -> Result<()> {
             Migrator::new(Path::new("..\\migrations\\")).await.unwrap();
             info!("Migration process completed successfully.");
         } else {
-            Migrator::new(Path::new("../migrations")).await.unwrap();
+            Migrator::new(Path::new("migrations")).await.unwrap();
             info!("(Docker) Migration process completed successfully.");
         }
 
