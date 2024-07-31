@@ -22,7 +22,7 @@ pub fn post_router() -> Router {
 struct IndividualPayload {
     username: String,
     password: String,
-    ip: String,
+    ip_address: String,
     protocol: String,
 }
 async fn post_add_attack(
@@ -32,7 +32,7 @@ async fn post_add_attack(
     let individual = Individual::new_short(
         payload.username,
         payload.password,
-        payload.ip,
+        payload.ip_address,
         payload.protocol,
     );
     individual.validate()?;
