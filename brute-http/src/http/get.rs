@@ -11,7 +11,7 @@ use tower::{
 use tower_http::compression::CompressionLayer;
 
 use crate::{
-    model::{ProcessedIndividual, TopProtocol},
+    model::{ProcessedIndividual, TopCountry, TopProtocol},
     system::{BruteSystem, RequestWithLimit},
 };
 
@@ -21,6 +21,7 @@ pub fn get_router() -> Router {
     Router::new()
         .route("/attack", get(get_attacker))
         .route("/protocol", get(get_protocol))
+        .route("/country", get(get_country))
     .layer(
         ServiceBuilder::new()
             // https://github.com/tokio-rs/axum/discussions/987
@@ -42,9 +43,9 @@ struct LimitParameter {
 
 ////////////
 /// GET ///
-///////////////////////////////////////////
+//////////////////////////////////////////
 /// brute/stats/attack?limit={amount} ///
-/////////////////////////////////////////
+////////////////////////////////////////
 async fn get_attacker(
     Extension(actor): Extension<Addr<BruteSystem>>,
     Query(params): Query<LimitParameter>,
@@ -66,9 +67,9 @@ async fn get_attacker(
 
 ////////////
 /// GET ///
-///////////////////////////////////////////
+////////////////////////////////////////////
 /// brute/stats/protocol?limit={amount} ///
-/////////////////////////////////////////
+//////////////////////////////////////////
 async fn get_protocol(
     Extension(actor): Extension<Addr<BruteSystem>>,
     Query(params): Query<LimitParameter>,
@@ -76,6 +77,30 @@ async fn get_protocol(
     let limit = params.limit.unwrap_or(50);
     let mut request = RequestWithLimit {
         table: TopProtocol::default(),
+        limit,
+        max_limit: 50,
+    };
+    if limit > request.max_limit {
+        request.limit = request.max_limit;
+    }
+    match actor.send(request).await {
+        Ok(result) => Ok(Json(result?)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+////////////
+/// GET ///
+///////////////////////////////////////////
+/// brute/stats/country?limit={amount} ///
+/////////////////////////////////////////
+async fn get_country(
+    Extension(actor): Extension<Addr<BruteSystem>>,
+    Query(params): Query<LimitParameter>,
+) -> Result<Json<Vec<TopCountry>>, StatusCode> {
+    let limit = params.limit.unwrap_or(50);
+    let mut request = RequestWithLimit {
+        table: TopCountry::default(),
         limit,
         max_limit: 50,
     };

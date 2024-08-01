@@ -6,7 +6,7 @@ use reporter::{BruteReporter, Reportable};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 
-use crate::model::{Individual, ProcessedIndividual, TopProtocol};
+use crate::model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol};
 
 pub trait Brute {}
 
@@ -200,6 +200,37 @@ impl Handler<TopProtocol> for BruteSystem {
         ctx.spawn(fut.into_actor(self));
     }
 }
+
+//////////////////////////
+// TOP COUNTRY MESSAGE //
+////////////////////////
+
+impl Handler<RequestWithLimit<TopCountry>> for BruteSystem {
+    type Result = ResponseFuture<Result<Vec<TopCountry>, StatusCode>>;
+
+    fn handle(
+        &mut self,
+        msg: RequestWithLimit<TopCountry>,
+        _: &mut Self::Context,
+    ) -> Self::Result {
+        let db_pool = self.db_pool.clone();
+        let limit = msg.limit;
+
+        let fut = async move {
+            let query = "SELECT * FROM top_country ORDER BY amount DESC LIMIT $1;";
+            let rows = sqlx::query_as::<_, TopCountry>(query)
+                .bind(limit as i64)
+                .fetch_all(&db_pool)
+                .await;
+            match rows {
+                Ok(rows) => Ok(rows),
+                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        };
+        Box::pin(fut)
+    }
+}
+
 
 ///////////////
 // REPORTER //

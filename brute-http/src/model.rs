@@ -167,10 +167,14 @@ impl Message for RequestWithLimit<TopProtocol> {
     type Result = Result<Vec<TopProtocol>, StatusCode>;
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Default, Debug, sqlx::FromRow, Getters, Serialize, Deserialize)]
 pub struct TopCountry {
     country: String,
     amount: i32,
+}
+
+impl Message for RequestWithLimit<TopCountry> {
+    type Result = Result<Vec<TopCountry>, StatusCode>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]
