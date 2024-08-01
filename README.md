@@ -126,12 +126,12 @@ Before you can compile with docker a few things must be done.
 * Generate a certificate and key, or reuse existing ones.
 * Copy the certificate and key into the **```/certs```** directory.
 * Rename the files to **```cert.pem```**  and **```key.pem```** accordingly.
-### 3. Modify the Dockerfile
-* Set the environment variables in the Dockerfile to reflect the **```.env```** file.
+### 3. Modify the DockerFile
+* Set the environment variables in the DockerFile to reflect the **```.env```** file.
 * Ensure the **```RUNNING_IN_DOCKER```** variable is set to **```true```** if you plan on using Docker. This setting will take priority over the **```.env```** file.
 ### 4. Build the Docker Image
 * Run the following command to build the Docker image:
-```docker build --pull --rm -f "Dockerfile" -t brute:latest "."```
+```docker build --pull --rm -f "DockerFile" -t brute:latest "."```
 ### 5. Run the Docker Container
 * Execute the following command to run the Docker container:
 ```docker run --name brute brute```
