@@ -54,7 +54,6 @@ to
 ExecStartPre=/usr/local/sbin/sshd -t
 ExecStart=/usr/local/sbin/sshd -D $SSHD_OPTS
 ExecReload=/usr/local/sbin/sshd -t
-
 ```
 Now run ```sudo systemctl start ssh``` and run ```ssh -V```. If the following message pops up that means you successfully setup OpenSSH.
 ```
