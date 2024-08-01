@@ -31,8 +31,6 @@ sudo make install
 ```
 After building and installing, now you need to replace the old SSH with the new one. You can do that with these commands.
 ```
-sudo systemctl stop ssh
-
 # before we run these commands we should make a backup first.
 sudo cp -R /etc/ssh /etc/ssh_backup
 
@@ -41,6 +39,22 @@ sudo ln -s /usr/local/bin/ssh /usr/bin/ssh
 
 sudo mv /usr/sbin/sshd /usr/sbin/sshd_old
 sudo ln -s /usr/local/sbin/sshd /usr/sbin/sshd
+
+# ^ the above method may cause issues if you experience them 
+# you can try manually editing the files instead of moving them.
+
+nano /lib/systemd/system/ssh.service
+
+ExecStartPre=/usr/sbin/sshd -t
+ExecStart=/usr/sbin/sshd -D $SSHD_OPTS
+ExecReload=/usr/sbin/sshd -t
+
+to
+
+ExecStartPre=/usr/local/sbin/sshd -t
+ExecStart=/usr/local/sbin/sshd -D $SSHD_OPTS
+ExecReload=/usr/local/sbin/sshd -t
+
 ```
 Now run ```sudo systemctl start ssh``` and run ```ssh -V```. If the following message pops up that means you successfully setup OpenSSH.
 ```
