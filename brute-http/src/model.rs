@@ -1,4 +1,5 @@
 use axum::http::StatusCode;
+use clap::builder::Str;
 use derive_getters::Getters;
 
 use actix::Message;
@@ -177,15 +178,21 @@ impl Message for RequestWithLimit<TopCountry> {
     type Result = Result<Vec<TopCountry>, StatusCode>;
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Debug, Default, sqlx::FromRow, Getters, Serialize, Deserialize)]
 pub struct TopCity {
     city: String,
+    country: String,
     amount: i32,
+}
+
+impl Message for RequestWithLimit<TopCity> {
+    type Result = Result<Vec<TopCity>, StatusCode>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopRegion {
     region: String,
+    country: String,
     amount: i32,
 }
 
