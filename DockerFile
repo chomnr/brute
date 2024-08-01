@@ -1,3 +1,4 @@
+# Stage 1: Build
 FROM rust:1.78 as builder
 
 WORKDIR /usr/src/brute-http
@@ -5,39 +6,44 @@ WORKDIR /usr/src/brute-http
 COPY brute-http/Cargo.toml brute-http/Cargo.lock ./
 
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-
 RUN cargo build --release
 RUN rm -f target/release/deps/brute*
 
 COPY brute-http/ ./
 COPY migrations ./migrations
+COPY brute-http/certs ./certs
 
-RUN cargo build
+RUN cargo build --release
 
-FROM rust:1.78
+FROM debian:bookworm-slim
 
 WORKDIR /usr/src/brute-http
 
 RUN apt-get update && \
     apt-get install -y \
-    libssl-dev libpq-dev pkg-config ca-certificates \
+    libpq-dev \
+    pkg-config \
+    ca-certificates \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/src/brute-http /usr/src/brute-http
+COPY --from=builder /usr/src/brute-http/target/release/brute-http ./brute-http
+COPY brute-http/.env .env
+COPY --from=builder /usr/src/brute-http/migrations migrations
+COPY --from=builder /usr/src/brute-http/certs certs
 
-ENV DATABASE_URL=postgresql://postgres:{password}@{host}/{database}
+ENV DATABASE_URL=postgresql://chomnr:1714952dab4f475e8db352dc28f15902@38.46.221.97:5432/brute
 ENV BEARER_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ENV IPINFO_TOKEN=xxxxxxxxxxxxxx
 ENV RUST_LOG=trace
 ENV RUST_LOG_STYLE=always
 ENV RATE_LIMIT=5
 ENV RATE_LIMIT_DURATION=1
-ENV LISTEN_ADDRESS=0.0.0.0:3000
+ENV LISTEN_ADDRESS=0.0.0.0:7000
+ENV LISTEN_ADDRESS_TLS=0.0.0.0:7443
 ENV RUNNING_IN_DOCKER=true
 
 EXPOSE 7000
 EXPOSE 7443
 
-# dont use command make it run via executable.
-CMD ["cargo", "run", "--release"]
+CMD ["./brute-http"]
