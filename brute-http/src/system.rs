@@ -208,11 +208,7 @@ impl Handler<TopProtocol> for BruteSystem {
 impl Handler<RequestWithLimit<TopCountry>> for BruteSystem {
     type Result = ResponseFuture<Result<Vec<TopCountry>, StatusCode>>;
 
-    fn handle(
-        &mut self,
-        msg: RequestWithLimit<TopCountry>,
-        _: &mut Self::Context,
-    ) -> Self::Result {
+    fn handle(&mut self, msg: RequestWithLimit<TopCountry>, _: &mut Self::Context) -> Self::Result {
         let db_pool = self.db_pool.clone();
         let limit = msg.limit;
 
@@ -231,6 +227,31 @@ impl Handler<RequestWithLimit<TopCountry>> for BruteSystem {
     }
 }
 
+///////////////////////
+// TOP CITY MESSAGE //
+/////////////////////
+
+impl Handler<RequestWithLimit<TopCity>> for BruteSystem {
+    type Result = ResponseFuture<Result<Vec<TopCity>, StatusCode>>;
+
+    fn handle(&mut self, msg: RequestWithLimit<TopCity>, _: &mut Self::Context) -> Self::Result {
+        let db_pool = self.db_pool.clone();
+        let limit = msg.limit;
+
+        let fut = async move {
+            let query = "SELECT * FROM top_city ORDER BY amount DESC LIMIT $1;";
+            let rows = sqlx::query_as::<_, TopCity>(query)
+                .bind(limit as i64)
+                .fetch_all(&db_pool)
+                .await;
+            match rows {
+                Ok(rows) => Ok(rows),
+                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        };
+        Box::pin(fut)
+    }
+}
 
 ///////////////
 // REPORTER //
@@ -641,14 +662,15 @@ pub mod reporter {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_city ( city, amount )
-                VALUES ($1, 1)
-                ON CONFLICT (city)
+                INSERT INTO top_city (city, country, amount)
+                VALUES ($1, $2, 1)
+                ON CONFLICT (city, country)
                 DO UPDATE SET amount = top_city.amount + EXCLUDED.amount
                 RETURNING *;
             "#;
             let result = sqlx::query_as::<_, TopCity>(query)
                 .bind(model.city())
+                .bind(model.country())
                 .fetch_one(pool)
                 .await?;
             Ok(result)
@@ -664,14 +686,15 @@ pub mod reporter {
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
-                INSERT INTO top_region ( region, amount )
-                VALUES ($1, 1)
-                ON CONFLICT (region)
+                INSERT INTO top_region (region, country, amount)
+                VALUES ($1, $2, 1)
+                ON CONFLICT (region, country)
                 DO UPDATE SET amount = top_region.amount + EXCLUDED.amount
                 RETURNING *;
             "#;
             let result = sqlx::query_as::<_, TopRegion>(query)
                 .bind(model.region())
+                .bind(model.country())
                 .fetch_one(pool)
                 .await?;
             Ok(result)

@@ -11,7 +11,7 @@ use tower::{
 use tower_http::compression::CompressionLayer;
 
 use crate::{
-    model::{ProcessedIndividual, TopCountry, TopProtocol},
+    model::{ProcessedIndividual, TopCity, TopCountry, TopProtocol},
     system::{BruteSystem, RequestWithLimit},
 };
 
@@ -22,6 +22,8 @@ pub fn get_router() -> Router {
         .route("/attack", get(get_attacker))
         .route("/protocol", get(get_protocol))
         .route("/country", get(get_country))
+        .route("/city", get(get_city))
+
     .layer(
         ServiceBuilder::new()
             // https://github.com/tokio-rs/axum/discussions/987
@@ -101,6 +103,30 @@ async fn get_country(
     let limit = params.limit.unwrap_or(50);
     let mut request = RequestWithLimit {
         table: TopCountry::default(),
+        limit,
+        max_limit: 50,
+    };
+    if limit > request.max_limit {
+        request.limit = request.max_limit;
+    }
+    match actor.send(request).await {
+        Ok(result) => Ok(Json(result?)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+////////////
+/// GET ///
+////////////////////////////////////////
+/// brute/stats/city?limit={amount} ///
+//////////////////////////////////////
+async fn get_city(
+    Extension(actor): Extension<Addr<BruteSystem>>,
+    Query(params): Query<LimitParameter>,
+) -> Result<Json<Vec<TopCity>>, StatusCode> {
+    let limit = params.limit.unwrap_or(50);
+    let mut request = RequestWithLimit {
+        table: TopCity::default(),
         limit,
         max_limit: 50,
     };
