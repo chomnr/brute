@@ -6,7 +6,7 @@ use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 
-use crate::model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol};
+use crate::model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol, TopRegion};
 
 pub trait Brute {}
 
@@ -241,6 +241,32 @@ impl Handler<RequestWithLimit<TopCity>> for BruteSystem {
         let fut = async move {
             let query = "SELECT * FROM top_city ORDER BY amount DESC LIMIT $1;";
             let rows = sqlx::query_as::<_, TopCity>(query)
+                .bind(limit as i64)
+                .fetch_all(&db_pool)
+                .await;
+            match rows {
+                Ok(rows) => Ok(rows),
+                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        };
+        Box::pin(fut)
+    }
+}
+
+/////////////////////////
+// TOP REGION MESSAGE //
+///////////////////////
+
+impl Handler<RequestWithLimit<TopRegion>> for BruteSystem {
+    type Result = ResponseFuture<Result<Vec<TopRegion>, StatusCode>>;
+
+    fn handle(&mut self, msg: RequestWithLimit<TopRegion>, _: &mut Self::Context) -> Self::Result {
+        let db_pool = self.db_pool.clone();
+        let limit = msg.limit;
+
+        let fut = async move {
+            let query = "SELECT * FROM top_region ORDER BY amount DESC LIMIT $1;";
+            let rows = sqlx::query_as::<_, TopRegion>(query)
                 .bind(limit as i64)
                 .fetch_all(&db_pool)
                 .await;

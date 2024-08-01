@@ -188,11 +188,15 @@ impl Message for RequestWithLimit<TopCity> {
     type Result = Result<Vec<TopCity>, StatusCode>;
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Default, Debug, sqlx::FromRow, Getters, Serialize, Deserialize)]
 pub struct TopRegion {
     region: String,
     country: String,
     amount: i32,
+}
+
+impl Message for RequestWithLimit<TopRegion> {
+    type Result = Result<Vec<TopRegion>, StatusCode>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]
