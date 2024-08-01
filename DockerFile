@@ -36,7 +36,8 @@ ENV RATE_LIMIT_DURATION=1
 ENV LISTEN_ADDRESS=0.0.0.0:3000
 ENV RUNNING_IN_DOCKER=true
 
-EXPOSE 3000
+EXPOSE 7000
+EXPOSE 7443
 
 # dont use command make it run via executable.
 CMD ["cargo", "run", "--release"]

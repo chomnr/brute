@@ -48,8 +48,7 @@ pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
 //////////////
 pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig) -> anyhow::Result<()> {
     // environment variables
-    // let bearer_token = var("BRUTE_BEARER_TOKEN")?;
-    let listen_on = var("LISTEN_ADDRESS")?;
+    let listen_on = var("LISTEN_ADDRESS_TLS")?;
 
     // router
     let app = api_router()
