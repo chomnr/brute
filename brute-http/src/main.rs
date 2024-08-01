@@ -99,11 +99,14 @@ fn main() -> Result<()> {
         .await
         .unwrap();
 
+        /*
         let (non_tls, tls) =
             tokio::join!(serve(brute_actor.clone()), serve_tls(brute_actor, config),);
 
         non_tls.unwrap();
         tls.unwrap();
+        */
+        serve_tls(brute_actor, config).await.unwrap();
     });
     Ok(())
 }
