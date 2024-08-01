@@ -58,6 +58,7 @@ PerSourcePenaltyExemptList 0:0:0:0:0:0:0:0/0
 sudo sshd -t
 sudo systemctl restart sshd
 ```
+note: If you're on Ubuntu 23 and greater you need to stop and disable ssh.socket. with systemctl. or else you will get a conflict with port 22.
 
 ### Pam
 Before proceeding with the next steps, we need to compile the PAM module. To do that, follow these instructions:
