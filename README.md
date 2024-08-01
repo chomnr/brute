@@ -14,7 +14,7 @@ Before we begin setting up and installing Brute & OpenSSH, ensure you have downl
 ```bash
 sudo apt install build-essential zlib1g-dev libssl-dev libpq-dev 
 sudo apt install libcurl4-openssl-dev libpam0g-dev
-sudo apt install autoconf checkinstall
+sudo apt install autoconf
 ```
 ### OpenSSH
 ```bash
@@ -25,24 +25,7 @@ autoreconf
 ```
 ```
 sudo make
-sudo checkinstall
-```
-After you run the commands above, a UI will show up. Make sure that your settings look like this:
-```
-0 -  Maintainer: [Your Name <you@example.com>]
-1 -  Summary: [OpenSSH Portable]
-2 -  Name:    [openssh-portable]
-3 -  Version: [9.8p1]   <-- Enter your chosen version here
-4 -  Release: [1]
-5 -  License: [GPL]
-6 -  Group:   [checkinstall]
-7 -  Architecture: [amd64]
-8 -  Source location: [openssh-8.9p1]
-9 -  Alternate source location: [ ]
-10 - Requires: [ ]
-11 - Provides: [openssh-portable]
-12 - Conflicts: [ ]
-13 - Replaces: [ ]
+sudo make install
 ```
 After building and installing, now you need to replace the old SSH with the new one. You can do that with these commands.
 ```
