@@ -18,7 +18,7 @@ use crate::{
 pub fn get_router() -> Router {
     let rate_limit: u64 = var("RATE_LIMIT").unwrap().parse().unwrap();
     let rate_limit_duration: u64 = var("RATE_LIMIT_DURATION").unwrap().parse().unwrap();
-    Router::new().route("/attacks", get(get_attacker)).layer(
+    Router::new().route("/attack", get(get_attacker)).layer(
         ServiceBuilder::new()
             // https://github.com/tokio-rs/axum/discussions/987
             .layer(HandleErrorLayer::new(|err: BoxError| async move {
