@@ -56,7 +56,7 @@ PerSourcePenaltyExemptList 0.0.0.0/0
 PerSourcePenaltyExemptList 0:0:0:0:0:0:0:0/0
 
 sudo sshd -t
-sudo systemctl restart sshd
+sudo systemctl restart sshd # use ssh for this command if you're on ubuntu 23^
 ```
 note: If you're on Ubuntu 23 and greater you need to stop and disable ssh.socket. with systemctl. or else you will get a conflict with port 22.
 
