@@ -1,5 +1,4 @@
 use axum::http::StatusCode;
-use clap::builder::Str;
 use derive_getters::Getters;
 
 use actix::Message;

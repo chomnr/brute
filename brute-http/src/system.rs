@@ -2,7 +2,7 @@ use actix::{Actor, AsyncContext, Context, Handler, ResponseFuture, WrapFuture};
 use axum::http::StatusCode;
 use ipinfo::IpInfo;
 use log::{error, info};
-use reporter::{BruteReporter, Reportable};
+use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 
