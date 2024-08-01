@@ -19,7 +19,7 @@ sudo apt install autoconf
 ### OpenSSH
 ```bash
 git clone https://github.com/notpointless/openssh-9.8-patched
-cd openssh-portable
+cd openssh-9.8-patched
 autoreconf
 ./configure --with-pam --with-privsep-path=/var/lib/sshd/ --sysconfdir=/etc/ssh
 ```
