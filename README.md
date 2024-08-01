@@ -117,11 +117,23 @@ sudo cargo build
 ```
 ## Compiling with Docker
 Before you can compile with docker a few things must be done. 
-# Copy the Environment File
+### 1. Copy the Environment File
 * Copy **```.env.example```** into the **```/brute-http```** directory.
 * Rename the copied file to **```.env```** and fill in the required information.
-
-
+### 2. Generate or Reuse SSL Certificates
+* Generate a certificate and key, or reuse existing ones.
+* Copy the certificate and key into the **```/certs```** directory.
+* Rename the files to **```cert.pem```**  and **```key.pem```** accordingly.
+### 3. Modify the Dockerfile
+* Set the environment variables in the Dockerfile to reflect the **```.env```** file.
+* Ensure the **```RUNNING_IN_DOCKER```** variable is set to **```true```** if you plan on using Docker. This setting will take priority over the **```.env```** file.
+### 4. Build the Docker Image
+* Run the following command to build the Docker image:
+```docker build --pull --rm -f "Dockerfile" -t brute:latest "."```
+### 5. Run the Docker Container
+* Execute the following command to run the Docker container:
+```docker run --name brute brute```
+<br><br>
 ## Integrating your own metrics
 You can quickly add your metrics by following these steps: create a table using Diesel CLI, add the metric model to ```model.rs```, implement the required functionality, and then integrate it into the ```start_report()``` function located in ```system::reporter```.
 
