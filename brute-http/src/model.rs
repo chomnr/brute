@@ -217,6 +217,15 @@ pub struct TopPostal {
     amount: i32,
 }
 
+impl TopPostal {
+    pub fn new(postal: String, amount: i32) -> Self {
+        TopPostal {
+            postal,
+            amount
+        }
+    }
+}
+
 #[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopUsrPassCombo {
     id: String,

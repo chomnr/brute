@@ -290,6 +290,7 @@ pub mod reporter {
         TopPassword, TopPostal, TopProtocol, TopRegion, TopTimezone, TopUsername, TopUsrPassCombo,
         TopWeekly, TopYearly,
     };
+    use clap::builder::Str;
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use log::info;
     use std::{
@@ -802,6 +803,10 @@ pub mod reporter {
             reporter: &BruteReporter<BruteSystem>,
             model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
+            if model.postal().is_none() {
+                info!("Top_postal not updated as no postal information was found. for: {}", model.id());
+                return Ok(TopPostal::new(String::default(), 0))
+            }
             let pool = &reporter.brute.db_pool;
             // query
             let query = r#"
