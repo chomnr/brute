@@ -66,7 +66,7 @@ fn main() -> Result<()> {
                 .unwrap();
             info!("Migration process completed successfully.");
         } else {
-            Migrator::new(Path::new("./migrations"))
+            Migrator::new(Path::new("migrations"))
                 .await
                 .unwrap()
                 .run(&db)
