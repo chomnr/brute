@@ -8,7 +8,6 @@ use serde::Deserialize;
 use tower::{
     buffer::BufferLayer, limit::RateLimitLayer, BoxError, ServiceBuilder
 };
-use tower_http::compression::CompressionLayer;
 
 use crate::{
     model::{ProcessedIndividual, TopCity, TopCountry, TopProtocol, TopRegion},
@@ -35,7 +34,7 @@ pub fn get_router() -> Router {
             }))
             .layer(BufferLayer::new(1024))
             .layer(RateLimitLayer::new(rate_limit, Duration::from_secs(rate_limit_duration)),
-    )).layer(CompressionLayer::new())
+    ))
 }
 
 #[derive(Debug, Deserialize)]

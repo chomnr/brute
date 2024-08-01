@@ -5,7 +5,7 @@ use dotenvy::var;
 use get::get_router;
 use log::info;
 use post::post_router;
-use std::net::{IpAddr, SocketAddr};
+use std::{net::{IpAddr, SocketAddr}, sync::Arc};
 use tokio::net::TcpListener;
 use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
 

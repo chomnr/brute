@@ -290,7 +290,6 @@ pub mod reporter {
         TopPassword, TopPostal, TopProtocol, TopRegion, TopTimezone, TopUsername, TopUsrPassCombo,
         TopWeekly, TopYearly,
     };
-    use clap::builder::Str;
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use log::info;
     use std::{
