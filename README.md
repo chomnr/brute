@@ -26,6 +26,8 @@ autoreconf
 ```
 sudo make
 sudo make install
+# if you're having issues with installation try install checkinstall sudo apt install checkinstall then run it with sudo checkinstall.
+# make sure you change the name to openssh-portable and the version to 9.8p1
 ```
 After building and installing, now you need to replace the old SSH with the new one. You can do that with these commands.
 ```
