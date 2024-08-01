@@ -44,7 +44,7 @@ sudo mv /usr/sbin/sshd /usr/sbin/sshd_old
 sudo ln -s /usr/local/sbin/sshd /usr/sbin/sshd
 
 # ^ the above method may cause issues if you experience them 
-# you can try manually editing the files instead of moving them.
+# you can try manually editing the ssh.service file instead of moving them.
 
 nano /lib/systemd/system/ssh.service
 
