@@ -136,6 +136,36 @@ impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
     }
 }
 
+///////////////////////////
+// TOP PROTOCOL MESSAGE //
+/////////////////////////
+
+impl Handler<RequestWithLimit<TopProtocol>> for BruteSystem {
+    type Result = ResponseFuture<Result<Vec<TopProtocol>, StatusCode>>;
+
+    fn handle(
+        &mut self,
+        msg: RequestWithLimit<TopProtocol>,
+        _: &mut Self::Context,
+    ) -> Self::Result {
+        let db_pool = self.db_pool.clone();
+        let limit = msg.limit;
+
+        let fut = async move {
+            let query = "SELECT * FROM top_protocol ORDER BY amount DESC LIMIT $1;";
+            let rows = sqlx::query_as::<_, TopProtocol>(query)
+                .bind(limit as i64)
+                .fetch_all(&db_pool)
+                .await;
+            match rows {
+                Ok(rows) => Ok(rows),
+                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        };
+        Box::pin(fut)
+    }
+}
+
 /////////////////////////////////
 // INCREMENT PROTOCOL MESSAGE //
 ///////////////////////////////

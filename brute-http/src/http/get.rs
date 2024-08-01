@@ -11,14 +11,17 @@ use tower::{
 use tower_http::compression::CompressionLayer;
 
 use crate::{
-    model::ProcessedIndividual,
+    model::{ProcessedIndividual, TopProtocol},
     system::{BruteSystem, RequestWithLimit},
 };
 
 pub fn get_router() -> Router {
     let rate_limit: u64 = var("RATE_LIMIT").unwrap().parse().unwrap();
     let rate_limit_duration: u64 = var("RATE_LIMIT_DURATION").unwrap().parse().unwrap();
-    Router::new().route("/attack", get(get_attacker)).layer(
+    Router::new()
+        .route("/attack", get(get_attacker))
+        .route("/protocol", get(get_protocol))
+    .layer(
         ServiceBuilder::new()
             // https://github.com/tokio-rs/axum/discussions/987
             .layer(HandleErrorLayer::new(|err: BoxError| async move {
@@ -40,7 +43,7 @@ struct LimitParameter {
 ////////////
 /// GET ///
 ///////////////////////////////////////////
-/// brute/stats/attacks?limit={amount} ///
+/// brute/stats/attack?limit={amount} ///
 /////////////////////////////////////////
 async fn get_attacker(
     Extension(actor): Extension<Addr<BruteSystem>>,
@@ -57,6 +60,30 @@ async fn get_attacker(
     }
     match actor.send(request).await {
         Ok(result) => Ok(axum::Json(result?)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+////////////
+/// GET ///
+///////////////////////////////////////////
+/// brute/stats/protocol?limit={amount} ///
+/////////////////////////////////////////
+async fn get_protocol(
+    Extension(actor): Extension<Addr<BruteSystem>>,
+    Query(params): Query<LimitParameter>,
+) -> Result<Json<Vec<TopProtocol>>, StatusCode> {
+    let limit = params.limit.unwrap_or(50);
+    let mut request = RequestWithLimit {
+        table: TopProtocol::default(),
+        limit,
+        max_limit: 50,
+    };
+    if limit > request.max_limit {
+        request.limit = request.max_limit;
+    }
+    match actor.send(request).await {
+        Ok(result) => Ok(Json(result?)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

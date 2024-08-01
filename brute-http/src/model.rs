@@ -147,7 +147,7 @@ pub struct TopIp {
     amount: i32,
 }
 
-#[derive(Debug, sqlx::FromRow, Getters)]
+#[derive(Default, Debug, sqlx::FromRow, Getters, Serialize, Deserialize)]
 pub struct TopProtocol {
     protocol: String,
     amount: i32,
@@ -161,6 +161,10 @@ impl TopProtocol {
 
 impl Message for TopProtocol {
     type Result = ();
+}
+
+impl Message for RequestWithLimit<TopProtocol> {
+    type Result = Result<Vec<TopProtocol>, StatusCode>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]
