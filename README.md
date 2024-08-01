@@ -115,6 +115,12 @@ cd brute
 sudo cargo build
 ./brute
 ```
+## Compiling with Docker
+Before you can compile with docker a few things must be done. 
+# Copy the Environment File
+* Copy **```.env.example```** into the **```/brute-http```** directory.
+* Rename the copied file to **```.env```** and fill in the required information.
+
 
 ## Integrating your own metrics
 You can quickly add your metrics by following these steps: create a table using Diesel CLI, add the metric model to ```model.rs```, implement the required functionality, and then integrate it into the ```start_report()``` function located in ```system::reporter```.
