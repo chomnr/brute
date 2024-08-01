@@ -153,6 +153,16 @@ pub struct TopProtocol {
     amount: i32,
 }
 
+impl TopProtocol {
+    pub fn new(protocol: String, amount: i32) -> Self {
+        TopProtocol { protocol, amount }
+    }
+}
+
+impl Message for TopProtocol {
+    type Result = ();
+}
+
 #[derive(Debug, sqlx::FromRow, Getters)]
 pub struct TopCountry {
     country: String,

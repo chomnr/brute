@@ -1,12 +1,12 @@
-use std::sync::Arc;
 use actix::{Actor, AsyncContext, Context, Handler, ResponseFuture, WrapFuture};
 use axum::http::StatusCode;
 use ipinfo::IpInfo;
 use log::{error, info};
-use reporter::BruteReporter;
+use reporter::{BruteReporter, Reportable};
 use sqlx::{Pool, Postgres};
+use std::sync::Arc;
 
-use crate::model::{Individual, ProcessedIndividual};
+use crate::model::{Individual, ProcessedIndividual, TopProtocol};
 
 pub trait Brute {}
 
@@ -136,6 +136,40 @@ impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
     }
 }
 
+/////////////////////////////////
+// INCREMENT PROTOCOL MESSAGE //
+///////////////////////////////
+
+impl Handler<TopProtocol> for BruteSystem {
+    type Result = ();
+
+    fn handle(&mut self, msg: TopProtocol, ctx: &mut Self::Context) -> Self::Result {
+        let db_pool = self.db_pool.clone();
+
+        let fut = Box::pin(async move {
+            let query = r#"
+                INSERT INTO top_protocol ( protocol, amount )
+                VALUES ($1, 1)
+                ON CONFLICT (protocol)
+                DO UPDATE SET amount = top_protocol.amount + EXCLUDED.amount
+            "#;
+            let result = sqlx::query(query)
+                .bind(msg.protocol())
+                .execute(&db_pool)
+                .await;
+            match result {
+                Ok(_) => {
+                    info!("Successfully incremented protocol: {}", msg.protocol())
+                }
+                Err(_) => {
+                    error!("Failed to increment proptocol: {}", msg.protocol());
+                }
+            }
+        });
+        // Spawn the future as an actor message.
+        ctx.spawn(fut.into_actor(self));
+    }
+}
 
 ///////////////
 // REPORTER //

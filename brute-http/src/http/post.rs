@@ -4,12 +4,13 @@ use dotenvy::var;
 use serde::Deserialize;
 use tower_http::validate_request::ValidateRequestHeaderLayer;
 
-use crate::{model::Individual, system::BruteSystem, validator::Validate};
+use crate::{model::{Individual, TopProtocol}, system::BruteSystem, validator::Validate};
 
 pub fn post_router() -> Router {
     let bearer_token = var("BEARER_TOKEN").unwrap();
     Router::new()
         .route("/attack/add", post(post_add_attack))
+        .route("/protocol/increment", post(post_increment_protocol))
         .layer(ValidateRequestHeaderLayer::bearer(&bearer_token))
 }
 
@@ -44,3 +45,31 @@ async fn post_add_attack(
         )),
     }
 }
+
+/////////////
+/// POST ///
+/////////////////////////////////
+/// brute/protocol/increment ///
+///////////////////////////////
+#[derive(Deserialize)]
+struct ProtocolPayload {
+    protocol: String,
+}
+async fn post_increment_protocol(
+    Extension(actor): Extension<Addr<BruteSystem>>,
+    Json(payload): Json<ProtocolPayload>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let protocol = TopProtocol::new(
+        payload.protocol,
+        1
+    );
+
+    match actor.send(protocol).await {
+        Ok(_) => Ok(StatusCode::OK),
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Something went wrong on our side.".to_string(),
+        )),
+    }
+}
+
