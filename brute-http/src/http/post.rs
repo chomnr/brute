@@ -9,7 +9,7 @@ use crate::{model::Individual, system::BruteSystem, validator::Validate};
 pub fn post_router() -> Router {
     let bearer_token = var("BEARER_TOKEN").unwrap();
     Router::new()
-        .route("/add", post(post_add_attack))
+        .route("/attack/add", post(post_add_attack))
         .layer(ValidateRequestHeaderLayer::bearer(&bearer_token))
 }
 

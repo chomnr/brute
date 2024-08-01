@@ -83,7 +83,11 @@ pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig) -> 
 
 fn api_router() -> Router {
     let router = Router::new()
-        .nest("/brute/attack", post_router())
+        .nest("/brute", post_router())
         .nest("/brute/stats", get_router());
     router
+}
+
+mod websocket {
+   
 }
