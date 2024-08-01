@@ -12,6 +12,9 @@ Currently, this project must use a specific version of OpenSSH. Unfortunately, t
 
 Before we begin setting up and installing Brute & OpenSSH, ensure you have downloaded the following libraries and tools.
 ```bash
+sudo apt update
+sudo apt upgrade
+
 sudo apt install build-essential zlib1g-dev libssl-dev libpq-dev 
 sudo apt install libcurl4-openssl-dev libpam0g-dev
 sudo apt install autoconf
