@@ -1,95 +1,104 @@
 use actix::Addr;
-use axum::{Extension, Router};
-use axum_server::tls_rustls::RustlsConfig;
-use dotenvy::var;
-use get::get_router;
+use actix_cors::Cors;
+use actix_web::{http, web, App, HttpServer};
+use get::{
+    get_brute_attackers, get_brute_city, get_brute_country, get_brute_protocol, get_brute_region,
+};
 use log::info;
-use post::post_router;
-use std::net::{IpAddr, SocketAddr};
-use tokio::net::TcpListener;
-use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
+use post::{post_brute_attack_add, post_brute_protocol_increment};
+use rustls::ServerConfig;
 
 use crate::system::BruteSystem;
 
 mod get;
 mod post;
 
-//////////////////
-/// NO SSL/TLS //
-////////////////
-pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
-    // environment variables
-    // let bearer_token = var("BRUTE_BEARER_TOKEN")?;
-    let listen_on = var("LISTEN_ADDRESS")?;
+#[derive(Clone)]
+pub struct AppState {
+    actor: Addr<BruteSystem>,
+    bearer: String,
+}
 
-    // router
-    let app = api_router()
-        // Add a layer to access the instance of Brute
-        .layer(Extension(brute_actor))
-        // Add a layer to limit the size of the request body to 3 KB
-        .layer(RequestBodyLimitLayer::new(3 * 1024))
-        // Add a layer for tracing HTTP requests
-        .layer(TraceLayer::new_for_http());
-
-    // http server
-    info!("Server is now listening on {}.", listen_on);
-    let tcp_listener = TcpListener::bind(listen_on).await.unwrap();
-    axum::serve(
-        tcp_listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
+pub async fn serve(
+    ip: &str,
+    port: u16,
+    brute_actor: Addr<BruteSystem>,
+    bearer_token: String,
+) -> anyhow::Result<()> {
+    info!("(TLS) Listening on {}:{}", ip, port);
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .send_wildcard()
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_headers(vec![
+                http::header::AUTHORIZATION,
+                http::header::CONTENT_TYPE,
+                http::header::ACCEPT,
+            ])
+            .max_age(3600);
+        App::new()
+            .app_data(web::Data::new(AppState {
+                actor: brute_actor.clone(),
+                bearer: bearer_token.clone(),
+            }))
+            .wrap(cors)
+            .service(
+                web::scope("brute")
+                    .service(post_brute_attack_add)
+                    .service(post_brute_protocol_increment)
+                    .service(get_brute_attackers)
+                    .service(get_brute_protocol)
+                    .service(get_brute_country)
+                    .service(get_brute_city)
+                    .service(get_brute_region),
+            )
+    })
+    .bind((ip, port))
+    .unwrap()
+    .run()
     .await
     .unwrap();
     Ok(())
 }
 
-////////////////
-/// SSL/TLS ///
-//////////////
-pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig, handle: axum_server::Handle) -> anyhow::Result<()> {
-    // environment variables
-    let listen_on = var("LISTEN_ADDRESS_TLS")?;
-
-    // router
-    let app = api_router()
-        // Add a layer to access the instance of Brute
-        .layer(Extension(brute_actor))
-        // Add a layer to limit the size of the request body to 3 KB
-        .layer(RequestBodyLimitLayer::new(3 * 1024))
-        // Add a layer for tracing HTTP requests
-        .layer(TraceLayer::new_for_http());
-
-    // http server
-
-    let mut parts = listen_on.split(':');
-    let ip_part = parts
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Missing IP address"))?;
-    let port_part = parts
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Missing port"))?;
-
-    let ip: IpAddr = ip_part.parse()?;
-    let port: u16 = port_part.parse()?;
-
-
-    let socket_addr = SocketAddr::new(ip, port);
-    info!("(TLS) Server is now listening on {}.", listen_on);
-    axum_server::bind_rustls(socket_addr, config)
-        .handle(handle)
-        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
-        .unwrap();
+pub async fn serve_tls(
+    ip: &str,
+    port: u16,
+    brute_actor: Addr<BruteSystem>,
+    tls_config: ServerConfig,
+    bearer_token: String,
+) -> anyhow::Result<()> {
+    info!("Listening on {}:{}", ip, port);
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .send_wildcard()
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_headers(vec![
+                http::header::AUTHORIZATION,
+                http::header::CONTENT_TYPE,
+                http::header::ACCEPT,
+            ])
+            .max_age(3600);
+        App::new()
+            .app_data(web::Data::new(AppState {
+                actor: brute_actor.clone(),
+                bearer: bearer_token.clone(),
+            }))
+            .wrap(cors)
+            .service(
+                web::scope("brute")
+                    .service(post_brute_attack_add)
+                    .service(post_brute_protocol_increment)
+                    .service(get_brute_attackers)
+                    .service(get_brute_protocol)
+                    .service(get_brute_country)
+                    .service(get_brute_city)
+                    .service(get_brute_region),
+            )
+    })
+    .bind_rustls_0_23((ip, port), tls_config)?
+    .run()
+    .await
+    .unwrap();
     Ok(())
-}
-
-fn api_router() -> Router {
-    let router = Router::new()
-        .nest("/brute", post_router())
-        .nest("/brute/stats", get_router());
-    router
-}
-
-mod websocket {
-   
 }

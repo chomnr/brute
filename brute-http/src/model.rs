@@ -1,11 +1,9 @@
-use axum::http::StatusCode;
+use actix::Message;
 use derive_getters::Getters;
 
-use actix::Message;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::{system::RequestWithLimit, validator::Validate};
+use crate::{error::BruteResponeError, system::RequestWithLimit};
 
 #[derive(Default, Clone, Debug, sqlx::FromRow,Getters)]
 pub struct Individual {
@@ -34,7 +32,7 @@ impl Individual {
             id: String::default(),
             username,
             password,
-            ip,
+            ip, 
             protocol,
             timestamp: 0,
         }
@@ -44,44 +42,6 @@ impl Individual {
 // allow as a message in actix actor.
 impl Message for Individual {
     type Result = ();
-}
-
-impl Validate for Individual {
-    fn validate(&self) -> anyhow::Result<(), (axum::http::StatusCode, String)> {
-        if self.username.is_empty() {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: username is empty.".to_string()))
-        }
-
-        if self.username.len() > 255 {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: username is too long max is 255 characters.".to_string()))
-        }
-
-        if self.password.is_empty() {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: password is empty.".to_string()))
-        }
-
-        if self.password.len() > 255 {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: password is too long max is 255 characters.".to_string()))
-        }
-
-        if self.ip.is_empty() {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: ip is empty.".to_string()))
-        }
-
-        if self.protocol.is_empty() {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: protocol is empty.".to_string()))
-        }
-
-        if self.protocol.len() > 50 {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: protocol is too long max is 50 characters.".to_string()))
-        }
-
-        let regex_ip = Regex::new(r#"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"#).unwrap();
-        if !regex_ip.is_match(&self.ip) {
-            return Err((StatusCode::BAD_REQUEST, "input validation error: ip_address is not formatted correctly.".to_string()))
-        }
-        Ok(())
-    }
 }
 
 #[derive(Default, Clone, Debug, sqlx::FromRow, Getters, Serialize, Deserialize)]
@@ -126,7 +86,7 @@ pub struct ProcessedIndividual {
 }
 
 impl Message for RequestWithLimit<ProcessedIndividual> {
-    type Result = Result<Vec<ProcessedIndividual>, StatusCode>;
+    type Result = Result<Vec<ProcessedIndividual>, BruteResponeError>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]
@@ -164,7 +124,7 @@ impl Message for TopProtocol {
 }
 
 impl Message for RequestWithLimit<TopProtocol> {
-    type Result = Result<Vec<TopProtocol>, StatusCode>;
+    type Result = Result<Vec<TopProtocol>, BruteResponeError>;
 }
 
 #[derive(Default, Debug, sqlx::FromRow, Getters, Serialize, Deserialize)]
@@ -174,7 +134,7 @@ pub struct TopCountry {
 }
 
 impl Message for RequestWithLimit<TopCountry> {
-    type Result = Result<Vec<TopCountry>, StatusCode>;
+    type Result = Result<Vec<TopCountry>, BruteResponeError>;
 }
 
 #[derive(Debug, Default, sqlx::FromRow, Getters, Serialize, Deserialize)]
@@ -185,7 +145,7 @@ pub struct TopCity {
 }
 
 impl Message for RequestWithLimit<TopCity> {
-    type Result = Result<Vec<TopCity>, StatusCode>;
+    type Result = Result<Vec<TopCity>, BruteResponeError>;
 }
 
 #[derive(Default, Debug, sqlx::FromRow, Getters, Serialize, Deserialize)]
@@ -196,7 +156,7 @@ pub struct TopRegion {
 }
 
 impl Message for RequestWithLimit<TopRegion> {
-    type Result = Result<Vec<TopRegion>, StatusCode>;
+    type Result = Result<Vec<TopRegion>, BruteResponeError>;
 }
 
 #[derive(Debug, sqlx::FromRow, Getters)]

@@ -1,48 +1,86 @@
+use std::{env::var, fs::File, io::BufReader, path::Path};
+
 use actix::Actor;
-use anyhow::Result;
-use axum_server::tls_rustls::RustlsConfig;
-use brute_http::{config::Config, http::serve_tls, system::BruteSystem};
+use brute_http::{config::Config, http::{serve, serve_tls}, system::BruteSystem};
 use clap::Parser;
-use dotenvy::var;
 use ipinfo::{IpInfo, IpInfoConfig};
 use log::info;
 use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
-use std::path::{Path, PathBuf};
 
-#[actix_rt::main]
+static CERTS_DIRECTORY: &str = "certs";
+
+#[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load environment variables from .env file
-    dotenvy::dotenv().unwrap();
+    info!("Initializing.");
 
-    // Initialize logger
+    /////////////////////
+    // ENV AND LOGGER //
+    ///////////////////
+    dotenvy::dotenv().unwrap();
     env_logger::builder()
         .filter_module("async_io", log::LevelFilter::Off)
         .filter_module("async_std", log::LevelFilter::Off)
         .filter_module("polling", log::LevelFilter::Off)
         .filter_module("tracing", log::LevelFilter::Off)
         .filter_module("sqlx", log::LevelFilter::Off)
-        .filter_module("tower_http", log::LevelFilter::Off)
-        .filter_module("tower::buffer::worker", log::LevelFilter::Off)
-        .filter_module("tower::buffer::service", log::LevelFilter::Off)
-        .filter_module("hyper", log::LevelFilter::Off)
+        .filter_module("actix_server::worker", log::LevelFilter::Off)
+        .filter_module("actix_http", log::LevelFilter::Off)
+        .filter_module("mio::poll", log::LevelFilter::Off)
+        .filter_module("rustls", log::LevelFilter::Off)
+
         .init();
 
-    // Parse command-line arguments and environment variables to create a Config instance
+    ////////////////////
+    // ENV VARIABLES //
+    //////////////////
+    let listen_address = var("LISTEN_ADDRESS").expect("LISTEN_ADDRESS should be set");
+    let listen_address_tls = var("LISTEN_ADDRESS_TLS").expect("LISTEN_ADDRESS_TLS should be set");
+    let running_in_docker = var("RUNNING_IN_DOCKER").expect("RUNNING_IN_DOCKER should be set");
+    let bearer_token = var("BEARER_TOKEN").expect("BEARER_TOKEN should be set");
+
+    //////////
+    // TLS //
+    ////////
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
+
+    let mut certs_file =
+        BufReader::new(File::open(format!("{}/cert.pem", CERTS_DIRECTORY)).unwrap());
+    let mut key_file = BufReader::new(File::open(format!("{}/key.pem", CERTS_DIRECTORY)).unwrap());
+
+    let tls_certs = rustls_pemfile::certs(&mut certs_file)
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    let tls_key = rustls_pemfile::pkcs8_private_keys(&mut key_file)
+        .next()
+        .unwrap()
+        .unwrap();
+
+    let tls_config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(tls_certs, rustls::pki_types::PrivateKeyDer::Pkcs8(tls_key))
+        .unwrap();
+
+    ///////////
+    // CLAP //
+    /////////
     let config = Config::parse();
 
-    // Create a new connection pool for PostgreSQL with a maximum of 500 connections
+    ///////////
+    // SQLX //
+    /////////
     let db = PgPoolOptions::new()
         .max_connections(500)
         .connect(&config.database_url)
         .await
-        .map_err(|e| format!("Failed to connect to the database: {}", e))?;
+        .map_err(|e| format!("Failed to connect to the database: {}", e))
+        .unwrap();
 
-    // Perform database migrations
-    let migration_path = if var("RUNNING_IN_DOCKER")
-        .unwrap_or_else(|_| "false".to_string())
-        .parse::<bool>()
-        .unwrap_or(false)
-    {
+    /////////////////////
+    // SQLX MIGRATION //
+    ///////////////////
+    let migration_path = if running_in_docker.parse::<bool>().unwrap_or(false) {
         Path::new("migrations")
     } else {
         Path::new("..\\migrations\\")
@@ -50,41 +88,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Migrator::new(migration_path)
         .await
-        .map_err(|e| format!("Failed to create migrator: {}", e))?
+        .map_err(|e| format!("Failed to create migrator: {}", e))
+        .unwrap()
         .run(&db)
         .await
-        .map_err(|e| format!("Failed to run migrations: {}", e))?;
+        .map_err(|e| format!("Failed to run migrations: {}", e))
+        .unwrap();
 
     info!("Migration process completed successfully.");
 
-    // Create IpInfo client
+    /////////////
+    // IPINFO //
+    ///////////
     let ipinfo_config = IpInfoConfig {
         token: Some(config.ipinfo_token.to_string()),
         ..Default::default()
     };
-    let ipinfo_client =
-        IpInfo::new(ipinfo_config).map_err(|e| format!("Failed to create IpInfo client: {}", e))?;
+    let ipinfo_client = IpInfo::new(ipinfo_config)
+        .map_err(|e| format!("Failed to create IpInfo client: {}", e))
+        .unwrap();
 
-    // Setup actor
+    ////////////
+    // ACTOR //
+    //////////
     let brute_system = BruteSystem::new_brute(db, ipinfo_client).await;
     let brute_actor = brute_system.start();
 
-    // Load TLS configuration
-    let tls_config = RustlsConfig::from_pem_file(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("certs")
-            .join("cert.pem"),
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("certs")
-            .join("key.pem"),
-    )
-    .await
-    .map_err(|e| format!("Failed to load TLS configuration: {}", e))?;
+    ////////////////////////////////////
+    // HTTP SERVER (TLS and NON-TLS) //
+    //////////////////////////////////
+    let (ip_tls, port_tls) = listen_address_tls
+        .split_once(':')
+        .expect("Invalid LISTEN_ADDRESS_TLS format. Expected format: IP:PORT");
 
-    // Serve TLS
-    serve_tls(brute_actor, tls_config, axum_server::Handle::new())
-        .await
-        .map_err(|e| format!("Failed to start TLS server: {}", e))?;
-    // use serve(actor) if you don't want to use tls.
+    let (ip, port) = listen_address
+        .split_once(':')
+        .expect("Invalid LISTEN_ADDRESS format. Expected format: IP:PORT");
+
+    let serve_tls_future = serve_tls(ip_tls, port_tls.parse::<u16>().unwrap(), brute_actor.clone(), tls_config, bearer_token.clone());
+    let serve_future = serve(ip, port.parse::<u16>().unwrap(), brute_actor, bearer_token);
+    tokio::try_join!(serve_tls_future, serve_future)?;
     Ok(())
 }

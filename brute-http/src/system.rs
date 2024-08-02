@@ -1,12 +1,11 @@
 use actix::{Actor, AsyncContext, Context, Handler, ResponseFuture, WrapFuture};
-use axum::http::StatusCode;
 use ipinfo::IpInfo;
 use log::{error, info};
 use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 
-use crate::model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol, TopRegion};
+use crate::{error::BruteResponeError, model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol, TopRegion}};
 
 pub trait Brute {}
 
@@ -111,7 +110,7 @@ impl Handler<Individual> for BruteSystem {
 ////////////////////////////////
 
 impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
-    type Result = ResponseFuture<Result<Vec<ProcessedIndividual>, StatusCode>>;
+    type Result = ResponseFuture<Result<Vec<ProcessedIndividual>, BruteResponeError>>;
 
     fn handle(
         &mut self,
@@ -129,7 +128,7 @@ impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+                Err(_) => Err(BruteResponeError::InternalError("something definitely broke on our side".to_string())),
             }
         };
         Box::pin(fut)
@@ -141,7 +140,7 @@ impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
 /////////////////////////
 
 impl Handler<RequestWithLimit<TopProtocol>> for BruteSystem {
-    type Result = ResponseFuture<Result<Vec<TopProtocol>, StatusCode>>;
+    type Result = ResponseFuture<Result<Vec<TopProtocol>, BruteResponeError>>;
 
     fn handle(
         &mut self,
@@ -159,7 +158,7 @@ impl Handler<RequestWithLimit<TopProtocol>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+                Err(_) => Err(BruteResponeError::InternalError("something definitely broke on our side".to_string())),
             }
         };
         Box::pin(fut)
@@ -206,7 +205,7 @@ impl Handler<TopProtocol> for BruteSystem {
 ////////////////////////
 
 impl Handler<RequestWithLimit<TopCountry>> for BruteSystem {
-    type Result = ResponseFuture<Result<Vec<TopCountry>, StatusCode>>;
+    type Result = ResponseFuture<Result<Vec<TopCountry>, BruteResponeError>>;
 
     fn handle(&mut self, msg: RequestWithLimit<TopCountry>, _: &mut Self::Context) -> Self::Result {
         let db_pool = self.db_pool.clone();
@@ -220,7 +219,7 @@ impl Handler<RequestWithLimit<TopCountry>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+                Err(_) => Err(BruteResponeError::InternalError("a country broke the server.".to_string())),
             }
         };
         Box::pin(fut)
@@ -232,7 +231,7 @@ impl Handler<RequestWithLimit<TopCountry>> for BruteSystem {
 /////////////////////
 
 impl Handler<RequestWithLimit<TopCity>> for BruteSystem {
-    type Result = ResponseFuture<Result<Vec<TopCity>, StatusCode>>;
+    type Result = ResponseFuture<Result<Vec<TopCity>, BruteResponeError>>;
 
     fn handle(&mut self, msg: RequestWithLimit<TopCity>, _: &mut Self::Context) -> Self::Result {
         let db_pool = self.db_pool.clone();
@@ -246,7 +245,7 @@ impl Handler<RequestWithLimit<TopCity>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+                Err(_) => Err(BruteResponeError::InternalError(format!("some city in {} broke the server", msg.table.city()))),
             }
         };
         Box::pin(fut)
@@ -258,7 +257,7 @@ impl Handler<RequestWithLimit<TopCity>> for BruteSystem {
 ///////////////////////
 
 impl Handler<RequestWithLimit<TopRegion>> for BruteSystem {
-    type Result = ResponseFuture<Result<Vec<TopRegion>, StatusCode>>;
+    type Result = ResponseFuture<Result<Vec<TopRegion>, BruteResponeError>>;
 
     fn handle(&mut self, msg: RequestWithLimit<TopRegion>, _: &mut Self::Context) -> Self::Result {
         let db_pool = self.db_pool.clone();
@@ -272,7 +271,7 @@ impl Handler<RequestWithLimit<TopRegion>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+                Err(_) => Err(BruteResponeError::InternalError(format!("how did some region named {} break the server", msg.table.region()))),
             }
         };
         Box::pin(fut)

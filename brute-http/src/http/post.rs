@@ -1,18 +1,8 @@
-use actix::Addr;
-use axum::{http::StatusCode, routing::post, Extension, Json, Router};
-use dotenvy::var;
+use actix_web::{post, web, HttpResponse};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 use serde::Deserialize;
-use tower_http::validate_request::ValidateRequestHeaderLayer;
 
-use crate::{model::{Individual, TopProtocol}, system::BruteSystem, validator::Validate};
-
-pub fn post_router() -> Router {
-    let bearer_token = var("BEARER_TOKEN").unwrap();
-    Router::new()
-        .route("/attack/add", post(post_add_attack))
-        .route("/protocol/increment", post(post_increment_protocol))
-        .layer(ValidateRequestHeaderLayer::bearer(&bearer_token))
-}
+use crate::{error::BruteResponeError, http::AppState, model::{Individual, TopProtocol}, validator::Validate};
 
 /////////////
 /// POST ///
@@ -26,23 +16,26 @@ struct IndividualPayload {
     ip_address: String,
     protocol: String,
 }
-async fn post_add_attack(
-    Extension(actor): Extension<Addr<BruteSystem>>,
-    Json(payload): Json<IndividualPayload>,
-) -> Result<StatusCode, (StatusCode, String)> {
+#[post("/attack/add")]
+async fn post_brute_attack_add(
+    state: web::Data<AppState>,
+    payload: web::Json<IndividualPayload>,
+    bearer: BearerAuth
+) -> Result<HttpResponse, BruteResponeError> {
+    if !bearer.token().eq(&state.bearer) {
+        return Ok(HttpResponse::Unauthorized().body("body"))
+    }
+
     let individual = Individual::new_short(
-        payload.username,
-        payload.password,
-        payload.ip_address,
-        payload.protocol,
+        payload.username.clone(),
+        payload.password.clone(),
+        payload.ip_address.clone(),
+        payload.protocol.clone(),
     );
     individual.validate()?;
-    match actor.send(individual).await {
-        Ok(_) => Ok(StatusCode::OK),
-        Err(_) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Something went wrong on our side.".to_string(),
-        )),
+    match state.actor.send(individual).await {
+        Ok(_) => Ok(HttpResponse::Ok().into()),
+        Err(er) => Err(BruteResponeError::InternalError(er.to_string())),
     }
 }
 
@@ -54,22 +47,24 @@ async fn post_add_attack(
 #[derive(Deserialize)]
 struct ProtocolPayload {
     protocol: String,
+    amount: i32,
 }
-async fn post_increment_protocol(
-    Extension(actor): Extension<Addr<BruteSystem>>,
-    Json(payload): Json<ProtocolPayload>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let protocol = TopProtocol::new(
-        payload.protocol,
-        1
-    );
+#[post("/protocol/increment")]
+async fn post_brute_protocol_increment(
+    state: web::Data<AppState>,
+    payload: web::Json<ProtocolPayload>,
+    bearer: BearerAuth
+) -> Result<HttpResponse, BruteResponeError> {
+    if !bearer.token().eq(&state.bearer) {
+        return Ok(HttpResponse::Unauthorized().body("body"))
+    }
 
-    match actor.send(protocol).await {
-        Ok(_) => Ok(StatusCode::OK),
-        Err(_) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Something went wrong on our side.".to_string(),
-        )),
+    let individual = TopProtocol::new(
+        payload.protocol.clone(),
+        payload.amount,
+    );
+    match state.actor.send(individual).await {
+        Ok(_) => Ok(HttpResponse::Ok().into()),
+        Err(er) => Err(BruteResponeError::InternalError(er.to_string())),
     }
 }
-
