@@ -2,4 +2,4 @@
 
 resolver = "2"
 
-members = ["daemon", "brute-http"]
+members = ["brute-daemon", "brute-http"]
