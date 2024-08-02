@@ -289,6 +289,7 @@ pub mod reporter {
         TopPassword, TopPostal, TopProtocol, TopRegion, TopTimezone, TopUsername, TopUsrPassCombo,
         TopWeekly, TopYearly,
     };
+    use clap::builder::Str;
     use ipinfo::{AbuseDetails, AsnDetails, CompanyDetails, DomainsDetails, PrivacyDetails};
     use log::info;
     use std::{
@@ -484,7 +485,11 @@ pub mod reporter {
 
             let mut ipinfo_lock = ipinfo.lock();
             let ip_details = match ip_exists {
-                Some(result) if now - result.timestamp <= 300_000 => {
+                Some(mut result) if now - result.timestamp <= 300_000 => {
+                    if result.postal().is_none() {
+                        // fix unwrap error.
+                        result.postal = Some(String::default())
+                    }
                     info!("Reusing cached results for IP: {}", model.ip());
                     sqlx::query_as::<_, ProcessedIndividual>(insert_query)
                         .bind(&model.id())

@@ -58,7 +58,7 @@ pub struct ProcessedIndividual {
     country: Option<String>,
     loc: Option<String>,
     org: Option<String>,
-    postal: Option<String>,
+    pub postal: Option<String>,
     asn: Option<String>,
     asn_name: Option<String>,
     asn_domain: Option<String>,
