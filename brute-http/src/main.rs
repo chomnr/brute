@@ -9,7 +9,7 @@ use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
 
 static CERTS_DIRECTORY: &str = "certs";
 
-#[actix_web::main]
+#[actix_rt::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing.");
 
