@@ -544,7 +544,6 @@ dependencies = [
  "env_logger",
  "ipinfo",
  "log",
- "parking_lot",
  "regex",
  "rustls 0.23.12",
  "rustls-pemfile 2.1.2",
