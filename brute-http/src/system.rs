@@ -326,7 +326,7 @@ pub mod reporter {
             payload: Individual,
         ) -> anyhow::Result<ProcessedIndividual> {
             let start = Instant::now();
-
+            let transaction = self.brute.db_pool.begin().await.unwrap();
             // Report individual
             let individual = Individual::report(&self, &payload).await?;
 
@@ -359,6 +359,7 @@ pub mod reporter {
                 "Successfully processed individual report in {:.2?}.",
                 elasped_time
             );
+            transaction.commit().await.unwrap();
             Ok(processed_individual)
         }
     }
