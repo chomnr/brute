@@ -17,7 +17,7 @@ mod post;
 //////////////////
 /// NO SSL/TLS //
 ////////////////
-pub async fn serve(brute_actor: Addr<BruteSystem>, handle: axum_server::Handle) -> anyhow::Result<()> {
+pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
     // environment variables
     // let bearer_token = var("BRUTE_BEARER_TOKEN")?;
     let listen_on = var("LISTEN_ADDRESS")?;
