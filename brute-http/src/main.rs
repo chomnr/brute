@@ -14,14 +14,12 @@ use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
 use std::path::{Path, PathBuf};
 
 #[actix_rt::main]
-async fn main() -> Result<()> {
-    info!("Initializing...");
-    // Load environment variables from .env file.
-    // Fails if .env file not found, not readable or invalid.
-    dotenvy::dotenv()?;
-
-    // Start the logger based on environment configuration settings.
-    env_logger::builder().init();
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Load environment variables from .env file
+    dotenvy::dotenv().unwrap();
+    
+    // Initialize logger
+    env_logger::init();
     //.filter_module("async_io", log::LevelFilter::Off)
     //.filter_module("async_std", log::LevelFilter::Off)
     //.filter_module("polling", log::LevelFilter::Off)
@@ -33,71 +31,55 @@ async fn main() -> Result<()> {
     //.filter_module("hyper", log::LevelFilter::Off)
     //.init();
 
-    // Parse command-line arguments and environment variables to
-    // create a Config instance, loading configuration settings for the application.
+    // Parse command-line arguments and environment variables to create a Config instance
     let config = Config::parse();
 
-    // Create a new Actix system instance to manage
-    // the Actix actor framework environment for the application.
-    //let system = System::new();
-
-    // Create a new connection pool for PostgreSQL with a maximum of
-    // 500 connections Connect to the database using the URL provided in the configuration.
-    let db: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
+    // Create a new connection pool for PostgreSQL with a maximum of 500 connections
+    let db = PgPoolOptions::new()
         .max_connections(500)
         .connect(&config.database_url)
         .await
-        .unwrap();
+        .map_err(|e| format!("Failed to connect to the database: {}", e))?;
 
-    // Ensure the database is migrated correctly on startup.
-    // Docker's doesn't support this sort of path so we need
-    // to improvise.
-    let is_docker: bool = var("RUNNING_IN_DOCKER")
-        .unwrap_or(false.to_string())
-        .parse()
-        .unwrap();
-    
-    if !is_docker {
-        //sqlx::migrate!("..\\migrations\\").run(&db).await.unwrap();
-        Migrator::new(Path::new("..\\migrations\\"))
-            .await
-            .unwrap()
-            .run(&db)
-            .await
-            .unwrap();
-        info!("Migration process completed successfully.");
+    // Perform database migrations
+    let migration_path = if var("RUNNING_IN_DOCKER").unwrap_or_else(|_| "false".to_string()).parse::<bool>().unwrap_or(false) {
+        Path::new("migrations")
     } else {
-        Migrator::new(Path::new("migrations"))
-            .await
-            .unwrap()
-            .run(&db)
-            .await
-            .unwrap();
-        info!("(Docker) Migration process completed successfully.");
-    }
+        Path::new("..\\migrations\\")
+    };
 
-    // Create an instance of `IpInfoConfig` with the
-    // provided token and default settings for other fields.
+    Migrator::new(migration_path)
+        .await
+        .map_err(|e| format!("Failed to create migrator: {}", e))?
+        .run(&db)
+        .await
+        .map_err(|e| format!("Failed to run migrations: {}", e))?;
+
+    info!("Migration process completed successfully.");
+
+    // Create IpInfo client
     let ipinfo_config = IpInfoConfig {
         token: Some(config.ipinfo_token.to_string()),
         ..Default::default()
     };
-    let ipinfo_client = IpInfo::new(ipinfo_config).unwrap();
+    let ipinfo_client = IpInfo::new(ipinfo_config)
+        .map_err(|e| format!("Failed to create IpInfo client: {}", e))?;
 
-    // setup actor
+    // Setup actor
     let brute_system = BruteSystem::new_brute(db, ipinfo_client).await;
     let brute_actor = brute_system.start();
 
-    // tls support
-    let config = RustlsConfig::from_pem_file(
-        PathBuf::from(format!("{}/certs/cert.pem", env!("CARGO_MANIFEST_DIR"))),
-        PathBuf::from(format!("{}/certs/key.pem", env!("CARGO_MANIFEST_DIR")),
-    ))
+    // Load TLS configuration
+    let tls_config = RustlsConfig::from_pem_file(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("certs").join("cert.pem"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("certs").join("key.pem"),
+    )
     .await
-    .unwrap();
-    
-    let (non_tls, tls) = tokio::join!(serve(brute_actor.clone()), serve_tls(brute_actor, config),);
-    non_tls.unwrap();
-    tls.unwrap();
+    .map_err(|e| format!("Failed to load TLS configuration: {}", e))?;
+
+    // Serve TLS
+    serve_tls(brute_actor, tls_config, axum_server::Handle::new()).await
+        .map_err(|e| format!("Failed to start TLS server: {}", e))?;
+
     Ok(())
 }

@@ -17,7 +17,7 @@ mod post;
 //////////////////
 /// NO SSL/TLS //
 ////////////////
-pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
+pub async fn serve(brute_actor: Addr<BruteSystem>, handle: axum_server::Handle) -> anyhow::Result<()> {
     // environment variables
     // let bearer_token = var("BRUTE_BEARER_TOKEN")?;
     let listen_on = var("LISTEN_ADDRESS")?;
@@ -46,7 +46,7 @@ pub async fn serve(brute_actor: Addr<BruteSystem>) -> anyhow::Result<()> {
 ////////////////
 /// SSL/TLS ///
 //////////////
-pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig) -> anyhow::Result<()> {
+pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig, handle: axum_server::Handle) -> anyhow::Result<()> {
     // environment variables
     let listen_on = var("LISTEN_ADDRESS_TLS")?;
 
@@ -72,9 +72,11 @@ pub async fn serve_tls(brute_actor: Addr<BruteSystem>, config: RustlsConfig) -> 
     let ip: IpAddr = ip_part.parse()?;
     let port: u16 = port_part.parse()?;
 
+
     let socket_addr = SocketAddr::new(ip, port);
     info!("(TLS) Server is now listening on {}.", listen_on);
     axum_server::bind_rustls(socket_addr, config)
+        .handle(handle)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
