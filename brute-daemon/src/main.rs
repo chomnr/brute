@@ -1,11 +1,12 @@
+#[cfg(target_os = "linux")]
+use std::fs::File;
+#[cfg(target_os = "linux")]
+use daemonize::Daemonize;
+
 use protocol::ssh::listen_on_ssh;
 
 mod protocol;
 mod endpoint;
-
-use std::fs::File;
-
-use daemonize::Daemonize;
 
 #[cfg(target_os = "windows")]
 #[tokio::main]
