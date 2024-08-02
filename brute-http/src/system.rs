@@ -1,12 +1,17 @@
-use actix::{Actor, AsyncContext, Context, Handler, ResponseFuture, WrapFuture};
+use actix::{
+    dev::ContextFutureSpawner, Actor, AsyncContext, Context, Handler, ResponseFuture, WrapFuture,
+};
 use ipinfo::IpInfo;
 use log::{error, info};
 use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
-use tokio::sync::Mutex;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
-use crate::{error::BruteResponeError, model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol, TopRegion}};
+use crate::{
+    error::BruteResponeError,
+    model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol, TopRegion},
+};
 
 pub trait Brute {}
 
@@ -78,31 +83,26 @@ impl Handler<Individual> for BruteSystem {
 
     fn handle(&mut self, msg: Individual, ctx: &mut Self::Context) -> Self::Result {
         let reporter = self.reporter();
-
-        let fut = Box::pin(async move {
-            match reporter.start_report(msg).await {
-                Ok(result) => {
-                    // If the operation is successful, simply continue with execution.
-                    info!("Successfully processed Individual with ID: {}. Details: Username: '{}', IP: '{}', Protocol: '{}', Timestamp: {}, Location: {} - {}, {}, {}",
-                        result.id(),
-                        result.username(),
-                        result.ip(),
-                        result.protocol(),
-                        result.timestamp(),
-                        result.city().as_ref().unwrap_or(&"{EMPTY}".to_string()),
-                        result.region().as_ref().unwrap_or(&"{EMPTY}".to_string()),
-                        result.country().as_ref().unwrap_or(&"{EMPTY}".to_string()),
-                        result.postal().as_ref().unwrap_or(&"{EMPTY}".to_string())
-                    );
+        async move {
+                match reporter.start_report(msg).await {
+                    Ok(result) => {
+                        info!("Successfully processed Individual with ID: {}. Details: Username: '{}', IP: '{}', Protocol: '{}', Timestamp: {}, Location: {} - {}, {}, {}",
+                            result.id(),
+                            result.username(),
+                            result.ip(),
+                            result.protocol(),
+                            result.timestamp(),
+                            result.city().as_ref().unwrap_or(&"{EMPTY}".to_string()),
+                            result.region().as_ref().unwrap_or(&"{EMPTY}".to_string()),
+                            result.country().as_ref().unwrap_or(&"{EMPTY}".to_string()),
+                            result.postal().as_ref().unwrap_or(&"{EMPTY}".to_string())
+                        );
+                    }
+                    Err(e) => {
+                        error!("Failed to process report: {}", e);
+                    }
                 }
-                Err(e) => {
-                    error!("Failed to process report: {}", e);
-                }
-            }
-        });
-
-        // Spawn the future as an actor message.
-        ctx.spawn(fut.into_actor(self));
+            }.into_actor(self).wait(ctx)
     }
 }
 
@@ -129,7 +129,9 @@ impl Handler<RequestWithLimit<ProcessedIndividual>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(BruteResponeError::InternalError("something definitely broke on our side".to_string())),
+                Err(_) => Err(BruteResponeError::InternalError(
+                    "something definitely broke on our side".to_string(),
+                )),
             }
         };
         Box::pin(fut)
@@ -159,7 +161,9 @@ impl Handler<RequestWithLimit<TopProtocol>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(BruteResponeError::InternalError("something definitely broke on our side".to_string())),
+                Err(_) => Err(BruteResponeError::InternalError(
+                    "something definitely broke on our side".to_string(),
+                )),
             }
         };
         Box::pin(fut)
@@ -220,7 +224,9 @@ impl Handler<RequestWithLimit<TopCountry>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(BruteResponeError::InternalError("a country broke the server.".to_string())),
+                Err(_) => Err(BruteResponeError::InternalError(
+                    "a country broke the server.".to_string(),
+                )),
             }
         };
         Box::pin(fut)
@@ -246,7 +252,10 @@ impl Handler<RequestWithLimit<TopCity>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(BruteResponeError::InternalError(format!("some city in {} broke the server", msg.table.city()))),
+                Err(_) => Err(BruteResponeError::InternalError(format!(
+                    "some city in {} broke the server",
+                    msg.table.city()
+                ))),
             }
         };
         Box::pin(fut)
@@ -272,7 +281,10 @@ impl Handler<RequestWithLimit<TopRegion>> for BruteSystem {
                 .await;
             match rows {
                 Ok(rows) => Ok(rows),
-                Err(_) => Err(BruteResponeError::InternalError(format!("how did some region named {} break the server", msg.table.region()))),
+                Err(_) => Err(BruteResponeError::InternalError(format!(
+                    "how did some region named {} break the server",
+                    msg.table.region()
+                ))),
             }
         };
         Box::pin(fut)
@@ -812,8 +824,11 @@ pub mod reporter {
             model: &ProcessedIndividual,
         ) -> anyhow::Result<Self> {
             if model.postal().is_none() {
-                info!("Top_postal not updated as no postal information was found. for: {}", model.id());
-                return Ok(TopPostal::new(String::default(), 0))
+                info!(
+                    "Top_postal not updated as no postal information was found. for: {}",
+                    model.id()
+                );
+                return Ok(TopPostal::new(String::default(), 0));
             }
             let pool = &reporter.brute.db_pool;
             // query
