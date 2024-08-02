@@ -90,12 +90,12 @@ async fn main() -> Result<()> {
 
     // tls support
     let config = RustlsConfig::from_pem_file(
-        PathBuf::from(format!("certs/cert.pem")),
-        PathBuf::from(format!("certs/key.pem"),
+        PathBuf::from(format!("{}/certs/cert.pem", env!("CARGO_MANIFEST_DIR"))),
+        PathBuf::from(format!("{}/certs/key.pem", env!("CARGO_MANIFEST_DIR")),
     ))
     .await
     .unwrap();
-
+    
     let (non_tls, tls) = tokio::join!(serve(brute_actor.clone()), serve_tls(brute_actor, config),);
     non_tls.unwrap();
     tls.unwrap();
