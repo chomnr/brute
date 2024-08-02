@@ -2,5 +2,7 @@ brute-http/.env
 brute-http/target
 brute-http/certs/*
 brute-daemon/
+target/ 
 # Don't exclude readme
 !brute-http/certs/README.md
+!brute-daemon/README.md
