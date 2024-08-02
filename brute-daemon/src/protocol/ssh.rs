@@ -57,8 +57,8 @@ impl SshSession {
 impl russh::server::Handler for SshSession {
     type Error = anyhow::Error;
     async fn auth_password(&mut self, user: &str, password: &str) -> Result<Auth, Self::Error> {
-        let admin_username = var("SSH_ADMIN_USERNAME").unwrap();
-        let admin_password = var("SSH_ADMIN_PASSWORD").unwrap();
+        let admin_username = var("SSH_ADMIN_USERNAME").unwrap_or("root".to_string());
+        let admin_password = var("SSH_ADMIN_PASSWORD").unwrap_or("password".to_string());
         if user.eq(&admin_username) && password.eq(&admin_password) {
             return Ok(Auth::Accept);
         }
