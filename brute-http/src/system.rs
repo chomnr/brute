@@ -3,6 +3,7 @@ use ipinfo::IpInfo;
 use log::{error, info};
 use reporter::BruteReporter;
 use sqlx::{Pool, Postgres};
+use tokio::sync::Mutex;
 use std::sync::Arc;
 
 use crate::{error::BruteResponeError, model::{Individual, ProcessedIndividual, TopCity, TopCountry, TopProtocol, TopRegion}};
@@ -29,7 +30,7 @@ pub struct BruteSystem {
     pub db_pool: Pool<Postgres>,
 
     /// IP info client with shared access.
-    pub ipinfo_client: Arc<parking_lot::Mutex<IpInfo>>,
+    pub ipinfo_client: Arc<Mutex<IpInfo>>,
 }
 
 impl BruteSystem {
@@ -51,7 +52,7 @@ impl BruteSystem {
     pub async fn new_brute(pg_pool: Pool<Postgres>, ipinfo_client: IpInfo) -> Self {
         Self {
             db_pool: pg_pool,
-            ipinfo_client: Arc::new(parking_lot::Mutex::new(ipinfo_client)),
+            ipinfo_client: Arc::new(Mutex::new(ipinfo_client)),
         }
     }
 
@@ -482,7 +483,7 @@ pub mod reporter {
                 .fetch_optional(pool)
                 .await?;
 
-            let mut ipinfo_lock = ipinfo.lock();
+            let mut ipinfo_lock = ipinfo.lock().await;
             let ip_details = match ip_exists {
                 Some(mut result) if now - result.timestamp <= 300_000 => {
                     if result.postal().is_none() {

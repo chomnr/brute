@@ -1,7 +1,7 @@
 use std::{env::var, fs::File, io::BufReader, path::Path};
 
 use actix::Actor;
-use brute_http::{config::Config, http::{serve, serve_tls}, system::BruteSystem};
+use brute_http::{config::Config, http::{serve, serve_tls}, system::{self, BruteSystem}};
 use clap::Parser;
 use ipinfo::{IpInfo, IpInfoConfig};
 use log::info;
