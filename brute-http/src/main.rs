@@ -71,7 +71,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // SQLX //
     /////////
     let db = PgPoolOptions::new()
-        .max_connections(500)
         .connect(&config.database_url)
         .await
         .map_err(|e| format!("Failed to connect to the database: {}", e))
