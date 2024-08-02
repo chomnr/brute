@@ -1,4 +1,4 @@
-use actix::{Actor, System};
+use actix::Actor;
 use anyhow::Result;
 use axum_server::tls_rustls::RustlsConfig;
 use brute_http::{
@@ -11,10 +11,7 @@ use dotenvy::var;
 use ipinfo::{IpInfo, IpInfoConfig};
 use log::info;
 use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
 
 #[actix_rt::main]
 async fn main() -> Result<()> {
