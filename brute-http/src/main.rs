@@ -90,8 +90,8 @@ async fn main() -> Result<()> {
 
     // tls support
     let config = RustlsConfig::from_pem_file(
-        PathBuf::from(format!("{}/certs/cert.pem", env!("CARGO_MANIFEST_DIR"))),
-        PathBuf::from(format!("{}/certs/key.pem", env!("CARGO_MANIFEST_DIR")),
+        PathBuf::from(format!("certs/cert.pem")),
+        PathBuf::from(format!("certs/key.pem"),
     ))
     .await
     .unwrap();
