@@ -192,4 +192,7 @@ pub async fn start_report(&self, payload: Individual) {
 }
 ```
 
+### Todo
+* Instead of patching OpenSSH write a daemon that listens on those ports.
+
 **don't use production you know because the openssh is patched.**
