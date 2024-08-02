@@ -88,10 +88,10 @@ impl Handler<Individual> for BruteSystem {
                         result.ip(),
                         result.protocol(),
                         result.timestamp(),
-                        result.city().as_ref().unwrap(),
-                        result.region().as_ref().unwrap(),
-                        result.country().as_ref().unwrap(),
-                        result.postal().as_ref().unwrap()
+                        result.city().as_ref().unwrap_or(&"{EMPTY}".to_string()),
+                        result.region().as_ref().unwrap_or(&"{EMPTY}".to_string()),
+                        result.country().as_ref().unwrap_or(&"{EMPTY}".to_string()),
+                        result.postal().as_ref().unwrap_or(&"{EMPTY}".to_string())
                     );
                 }
                 Err(e) => {
@@ -534,13 +534,17 @@ pub mod reporter {
                 }
                 _ => {
                     info!("Fetching new details from ipinfo for IP: {}", model.ip());
-                    let ip_details = ipinfo_lock.lookup(&model.ip()).await?;
+                    let mut ip_details = ipinfo_lock.lookup(&model.ip()).await?;
 
                     let asn_details = ip_details.asn.as_ref().unwrap_or(&asn_default);
                     let company_details = ip_details.company.as_ref().unwrap_or(&company_default);
                     let abuse_details = ip_details.abuse.as_ref().unwrap_or(&abuse_default);
                     let domain_details = ip_details.domains.as_ref().unwrap_or(&domain_default);
                     let privacy_details = ip_details.privacy.as_ref().unwrap_or(&privacy_default);
+                    if ip_details.postal.is_none() {
+                        // fix unwrap error.
+                        ip_details.postal = Some(String::default())
+                    }
 
                     // Insert the new details
                     sqlx::query_as::<_, ProcessedIndividual>(insert_query)
