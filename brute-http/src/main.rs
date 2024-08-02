@@ -59,6 +59,7 @@ async fn main() -> Result<()> {
         .unwrap_or(false.to_string())
         .parse()
         .unwrap();
+    
     if !is_docker {
         //sqlx::migrate!("..\\migrations\\").run(&db).await.unwrap();
         Migrator::new(Path::new("..\\migrations\\"))
@@ -92,15 +93,12 @@ async fn main() -> Result<()> {
 
     // tls support
     let config = RustlsConfig::from_pem_file(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("certs")
-            .join("cert.pem"),
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("certs")
-            .join("key.pem"),
-    )
+        PathBuf::from(format!("{}/certs/cert.pem", env!("CARGO_MANIFEST_DIR"))),
+        PathBuf::from(format!("{}/certs/key.pem", env!("CARGO_MANIFEST_DIR")),
+    ))
     .await
     .unwrap();
+
     let (non_tls, tls) = tokio::join!(serve(brute_actor.clone()), serve_tls(brute_actor, config),);
     non_tls.unwrap();
     tls.unwrap();
